@@ -9618,6 +9618,24 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
+<script id="yl-version">window.YL_VERSION='2026.10.07-c';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-viewport">
+/* YL · alto real de la pantalla visible (descuenta barras del navegador y
+   teclado) en --yl-vh / --yl-vt. No depende de que el navegador entienda dvh. */
+(function(){
+  function set(){
+    const v=window.visualViewport;
+    const hgt=Math.round(v?v.height:window.innerHeight)||window.innerHeight;
+    const top=Math.round(v?v.offsetTop:0)||0;
+    const r=document.documentElement.style;
+    r.setProperty('--yl-vh',hgt+'px');r.setProperty('--yl-vt',top+'px');
+  }
+  set();
+  window.addEventListener('resize',set);window.addEventListener('orientationchange',()=>setTimeout(set,250));
+  if(window.visualViewport){visualViewport.addEventListener('resize',set);visualViewport.addEventListener('scroll',set)}
+  document.addEventListener('visibilitychange',set);
+})();
+</script>
 <script id="yl-color-helpers">
 /* YL · utilidades de color compartidas */
 (function(){
@@ -12421,32 +12439,48 @@ window.saveState=function(){
   color:#fff!important;
 }
 </style>
-<style id="yl-picker-css">
-.yl-picker{display:flex;flex-direction:column;gap:16px}
-.yl-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.yl-dot{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px 9px;border-radius:14px;border:1px solid #26262a;background:#141416;color:#a9a9ae;font-size:11px;font-weight:700;cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .15s ease;-webkit-tap-highlight-color:transparent}
-.yl-dot:active{transform:scale(.96)}
-.yl-dot i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 1px 1px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.25),0 0 0 3px rgba(255,255,255,0);transition:box-shadow .2s ease}
-.yl-dot.on{border-color:#5a5a60;background:#1c1c1f;color:#fff}
-.yl-dot.on i{box-shadow:inset 0 1px 1px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.25),0 0 0 3px #0e0e10,0 0 0 4.5px rgba(255,255,255,.75)}
+<style id="yl-panel-fit">
+/* YL · Paneles siempre dentro de la parte VISIBLE de la pantalla.
+   El fondo oscuro se ajusta al área visible (no a la pantalla completa
+   detrás de la barra del navegador), el contenido se desplaza por dentro
+   y los botones de abajo quedan fijos y a la vista. */
+.yv72-focus{top:var(--yl-vt,0px)!important;bottom:auto!important;height:var(--yl-vh,100%)!important}
+.yv72-focus .yv72-sheet{display:flex!important;flex-direction:column;overflow:hidden!important;max-height:calc(var(--yl-vh,100vh) - 10px)!important}
+.yv72-focus .yv72-sheet>.yv72-grab,.yv72-focus .yv72-sheet>h3,.yv72-focus .yv72-sheet>.yv72-sub{flex:0 0 auto}
+.yv72-focus .yv72-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin:0!important;padding:4px 2px 8px!important}
+.yv72-focus .yv72-btns{position:relative;z-index:2;flex:0 0 auto;margin-top:0;padding-top:12px;border-top:1px solid #222226;background:#141416}
+.yv72-focus .yv72-btns button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.yv58-signup-overlay{top:var(--yl-vt,0px)!important;bottom:auto!important;height:var(--yl-vh,100%)!important;padding:12px 14px!important}
+.yv58-signup-card{max-height:calc(var(--yl-vh,100vh) - 24px)!important;overflow-y:auto!important;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+@media(max-height:620px){.yv72-focus .yv72-sheet h3{font-size:19px}.yv72-focus .yv72-grab{margin-bottom:8px}}
+</style><style id="yl-picker-css">
+.yl-picker{display:flex;flex-direction:column;gap:12px;min-width:0;max-width:100%}
+.yv72-focus .yv72-sheet{overflow-x:hidden!important}
+.yl-quick{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));justify-items:center;align-items:center;gap:2px;padding:4px 0}
+.yl-dot{width:100%;max-width:38px;aspect-ratio:1;height:auto;padding:0;border:0;background:none;border-radius:50%;display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s ease}
+.yl-dot:active{transform:scale(.92)}
+.yl-dot i{width:min(26px,72%);aspect-ratio:1;height:auto;border-radius:50%;box-shadow:inset 0 1px 1px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.25);transition:box-shadow .2s ease}
+.yl-dot.on i,.yl-more.open i{box-shadow:inset 0 1px 1px rgba(255,255,255,.35),inset 0 -2px 4px rgba(0,0,0,.25),0 0 0 3px #141416,0 0 0 4.5px rgba(255,255,255,.85)}
 .yl-more i{background:conic-gradient(#ff2948,#ffb020,#e8ff2e,#33e07a,#22d3ee,#3b82f6,#a855f7,#ff3ea5,#ff2948)}
-.yl-more.open{border-color:#5a5a60;color:#fff}
-.yl-full{display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 12px 12px;border-radius:16px;background:#111113;border:1px solid #232327;animation:ylFullIn .22s ease}
+.yl-cap{display:flex;justify-content:space-between;font-size:11.5px;color:#8e8e93;margin-top:-4px}
+.yl-cap b{color:#e5e5ea;font-weight:700}
+.yl-cap button{background:none;border:0;color:#a9a9ae;font-size:11.5px;font-weight:700;text-decoration:underline;padding:0;cursor:pointer}
+.yl-full{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 10px 10px;border-radius:14px;background:#0f0f11;border:1px solid #232327;animation:ylFullIn .2s ease}
 .yl-full[hidden]{display:none}
 @keyframes ylFullIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.yl-wheel{position:relative;width:min(188px,52vw);aspect-ratio:1;touch-action:none;cursor:pointer;margin-bottom:4px}
-.yl-wheel-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(hsl(0 85% 55%),hsl(30 90% 55%),hsl(60 90% 52%),hsl(90 75% 48%),hsl(120 70% 45%),hsl(150 75% 45%),hsl(180 80% 46%),hsl(210 85% 55%),hsl(240 80% 62%),hsl(270 80% 62%),hsl(300 75% 58%),hsl(330 85% 56%),hsl(360 85% 55%));-webkit-mask:radial-gradient(circle,transparent 57%,#000 58.5%);mask:radial-gradient(circle,transparent 57%,#000 58.5%);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.yl-wheel{position:relative;width:min(148px,40vw);aspect-ratio:1;touch-action:none;cursor:pointer;margin:2px 0 4px}
+.yl-wheel-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(hsl(0 85% 55%),hsl(30 90% 55%),hsl(60 90% 52%),hsl(90 75% 48%),hsl(120 70% 45%),hsl(150 75% 45%),hsl(180 80% 46%),hsl(210 85% 55%),hsl(240 80% 62%),hsl(270 80% 62%),hsl(300 75% 58%),hsl(330 85% 56%),hsl(360 85% 55%));-webkit-mask:radial-gradient(circle,transparent 56%,#000 57.5%);mask:radial-gradient(circle,transparent 56%,#000 57.5%)}
 .yl-wheel-hole{position:absolute;inset:24%;border-radius:50%;display:grid;place-items:center;background:#0c0c0e;box-shadow:inset 0 0 0 1px #24242a}
-.yl-cur{width:56%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 2px 3px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.45);transition:background .15s ease}
-.yl-knob{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.55);pointer-events:none}
-.yl-row-lbl{align-self:flex-start;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#76767c;margin-top:4px}
-.yl-shades{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;width:100%}
-.yl-shades button{aspect-ratio:1;border-radius:9px;border:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:transform .15s ease,box-shadow .15s ease;-webkit-tap-highlight-color:transparent}
-.yl-shades button.on{transform:scale(1.08);box-shadow:0 0 0 2px #0e0e10,0 0 0 3.5px rgba(255,255,255,.85)}
-.yl-prev{display:flex;flex-direction:column;gap:10px}
-.yl-prev .btn{pointer-events:none;width:100%}
-.yl-bar{height:6px;border-radius:6px;background:#222226;overflow:hidden}
-.yl-bar i{display:block;height:100%;width:68%;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--brand) 60%,#000),var(--brand))}
+.yl-cur{width:58%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 2px 3px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.3)}
+.yl-knob{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.55);pointer-events:none}
+.yl-row-lbl{align-self:flex-start;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#76767c}
+.yl-shades{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px;width:100%}
+.yl-shades button{aspect-ratio:1;max-height:30px;width:100%;border-radius:8px;border:0;padding:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);-webkit-tap-highlight-color:transparent}
+.yl-shades button.on{box-shadow:0 0 0 2px #0f0f11,0 0 0 3.5px rgba(255,255,255,.85)}
+.yl-prev{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#0f0f11;border:1px solid #232327}
+.yl-prev small{font-size:11px;color:#8e8e93;white-space:nowrap}
+.yl-prev .btn.btn-red{flex:1;min-height:38px!important;height:38px;padding:0 10px;font-size:12px;pointer-events:none;width:auto}
+.yl-bar{display:none}
 </style>
 <script id="yl-color-picker">
 /* =========================================================
@@ -12489,15 +12523,19 @@ window.saveState=function(){
     let pick=String(cur).toLowerCase();
     let hue=C.hex2hsl(pick)[0], sat=Math.max(55,C.hex2hsl(pick)[1]);
     const markChosen=()=>{if(!target.accentChosen){target.accentChosen=true;save()}};
+    /* YL · se marca como visto al MOSTRARLO: así nunca vuelve a salir solo,
+       aunque la persona cierre la app, recargue o salga sin guardar. */
+    if(!force)markChosen();
 
     const body=`<div class="yl-picker" data-norecolor="1">
-      <div class="yl-quick">${QUICK.map(([c,n])=>`<button type="button" class="yl-dot" data-c="${c}"><i style="background:${c}"></i><span>${n}</span></button>`).join('')}<button type="button" class="yl-dot yl-more" aria-expanded="false"><i></i><span>Más colores</span></button></div>
+      <div class="yl-quick">${QUICK.map(([c,n])=>`<button type="button" class="yl-dot" data-c="${c}" data-n="${n}" aria-label="${n}"><i style="background:${c}"></i></button>`).join('')}<button type="button" class="yl-dot yl-more" aria-expanded="false" aria-label="Más colores"><i></i></button></div>
+      <div class="yl-cap"><span>Color: <b class="yl-name">—</b></span><button type="button" class="yl-more-txt">Más colores</button></div>
       <div class="yl-full" hidden>
         <div class="yl-wheel" aria-label="Elige el tono"><div class="yl-wheel-ring"></div><div class="yl-wheel-hole"><i class="yl-cur"></i></div><b class="yl-knob"></b></div>
         <div class="yl-row-lbl">Del más claro al más oscuro</div><div class="yl-shades" data-kind="tone"></div>
         <div class="yl-row-lbl">Grises y negro</div><div class="yl-shades" data-kind="neutral">${NEUTRAL.map(c=>`<button type="button" data-c="${c}" style="background:${c}" aria-label="${c}"></button>`).join('')}</div>
       </div>
-      <div class="yl-prev"><button type="button" class="btn btn-red" tabindex="-1">Así se verán tus botones</button><div class="yl-bar"><i></i></div></div>
+      <div class="yl-prev"><small>Vista previa</small><button type="button" class="btn btn-red" tabindex="-1">Así se ven tus botones</button></div>
     </div>`;
 
     window.yv72FocusSheet({
@@ -12517,12 +12555,14 @@ window.saveState=function(){
           w.style.setProperty('--brand',u);w.style.setProperty('--brand2',C.hsl2hex(h,s,Math.max(14,l*.62)));
           curDot.style.background=pick;
           root.querySelectorAll('[data-c]').forEach(b=>b.classList.toggle('on',String(b.dataset.c).toLowerCase()===pick));
+          const q=root.querySelector('.yl-dot[data-c="'+pick+'"]');const nm=root.querySelector('.yl-name');if(nm)nm.textContent=q?q.dataset.n:'Personalizado';
         }
         root.addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b){upd(b.dataset.c)}});
-        more.onclick=()=>{const open=full.hidden;full.hidden=!open;more.classList.toggle('open',open);more.setAttribute('aria-expanded',String(open));if(open){paintTones();upd(pick);requestAnimationFrame(placeKnob)}};
+        const toggleMore=()=>{const open=full.hidden;full.hidden=!open;more.classList.toggle('open',open);more.setAttribute('aria-expanded',String(open));if(open){paintTones();upd(pick);requestAnimationFrame(placeKnob);setTimeout(()=>{try{const bd=w.querySelector('.yv72-body');if(bd){bd.scrollLeft=0;const sh=w.querySelector('.yv72-sheet');if(sh)sh.scrollLeft=0;bd.scrollTo({top:Math.max(0,full.offsetTop-bd.offsetTop-8),behavior:'smooth'})}}catch(e){}},60)}const t=root.querySelector('.yl-more-txt');if(t)t.textContent=open?'Menos colores':'Más colores'};
+        more.onclick=toggleMore;root.querySelector('.yl-more-txt').onclick=toggleMore;
         function fromPointer(e){const rect=wheel.getBoundingClientRect();const x=e.clientX-rect.left-rect.width/2,y=e.clientY-rect.top-rect.height/2;hue=(Math.atan2(x,-y)*180/Math.PI+360)%360;sat=82;paintTones();placeKnob();upd(C.hsl2hex(hue,sat,52))}
         wheel.addEventListener('pointerdown',e=>{e.preventDefault();wheel.setPointerCapture&&wheel.setPointerCapture(e.pointerId);fromPointer(e);const mv=ev=>fromPointer(ev);const up=()=>{wheel.removeEventListener('pointermove',mv);wheel.removeEventListener('pointerup',up);wheel.removeEventListener('pointercancel',up)};wheel.addEventListener('pointermove',mv);wheel.addEventListener('pointerup',up);wheel.addEventListener('pointercancel',up)});
-        if(!QUICK.some(([c])=>c===pick)){full.hidden=false;more.classList.add('open');paintTones();requestAnimationFrame(placeKnob)}
+        if(!QUICK.some(([c])=>c===pick)){full.hidden=false;more.classList.add('open');root.querySelector('.yl-more-txt').textContent='Menos colores';paintTones();requestAnimationFrame(placeKnob)}
         upd(pick);
         if(!force){
           const c=w.querySelector('.yv72-cancel');c.textContent='Omitir';
@@ -12531,10 +12571,14 @@ window.saveState=function(){
         }
       },
       onOk:()=>{
-        target.accent=pick;if(!isUser)target.accent2=pick;target.accentChosen=true;
-        save();
-        try{window.yv72ApplyBrand&&window.yv72ApplyBrand()}catch(e){console.error(e)}
-        toast('Color guardado.');
+        try{target.accent=pick;if(!isUser)target.accent2=pick;target.accentChosen=true}catch(e){console.error(e)}
+        /* el panel se cierra de inmediato; el guardado y el repintado van
+           un instante después para que el toque nunca se sienta trabado */
+        setTimeout(()=>{
+          try{save()}catch(e){console.error(e)}
+          try{window.yv72ApplyBrand&&window.yv72ApplyBrand()}catch(e){console.error(e)}
+          toast('Color guardado.');
+        },60);
       }
     });
   };
