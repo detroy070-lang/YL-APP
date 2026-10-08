@@ -7177,7 +7177,8 @@ window.showPage=function(id,...args){
  else{document.body.classList.remove("yv37-user");$("yv37Nav")?.remove()}
  return out
 };
-const obs=new MutationObserver(()=>{const p=$("userHome");if(p?.classList.contains("active")&&!p.querySelector(".yv37")&&!window.__yv37Busy){window.__yv37Busy=true;render();setTimeout(()=>window.__yv37Busy=false,30)}});
+/* YL · el Inicio nuevo (yv38) manda: este vigilante viejo ya no lo vuelve a dibujar (antes se peleaban ~17 veces por segundo y la barra de abajo "bailaba") */
+const obs=new MutationObserver(()=>{const p=$("userHome");if(p?.classList.contains("active")&&!p.querySelector(".yv37")&&!p.querySelector(".yv38")&&!window.__yv37Busy){window.__yv37Busy=true;render();setTimeout(()=>window.__yv37Busy=false,30)}});
 document.addEventListener("DOMContentLoaded",()=>{obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["class"]});setTimeout(()=>{if($("userHome")?.classList.contains("active"))render()},900)});
 if(document.readyState!=="loading"){obs.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["class"]});if($("userHome")?.classList.contains("active"))render()}
 })();
@@ -9618,22 +9619,24 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.07-d';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.07-e';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
-/* YL · alto real de la pantalla visible (descuenta barras del navegador y
-   teclado) en --yl-vh / --yl-vt. No depende de que el navegador entienda dvh. */
+/* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
+   abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
 (function(){
+  let last='',raf=0;
   function set(){
+    raf=0;
     const v=window.visualViewport;
     const hgt=Math.round(v?v.height:window.innerHeight)||window.innerHeight;
-    const top=Math.round(v?v.offsetTop:0)||0;
-    const r=document.documentElement.style;
-    r.setProperty('--yl-vh',hgt+'px');r.setProperty('--yl-vt',top+'px');
+    const top=Math.round(v&&v.offsetTop||0);
+    const val=hgt+'|'+top;if(val===last)return;last=val;
+    const r=document.documentElement.style;r.setProperty('--yl-vh',hgt+'px');r.setProperty('--yl-vt',top+'px');
   }
+  const req=()=>{if(!raf)raf=requestAnimationFrame(set)};
   set();
-  window.addEventListener('resize',set);window.addEventListener('orientationchange',()=>setTimeout(set,250));
-  if(window.visualViewport){visualViewport.addEventListener('resize',set);visualViewport.addEventListener('scroll',set)}
-  document.addEventListener('visibilitychange',set);
+  window.addEventListener('resize',req);window.addEventListener('orientationchange',()=>setTimeout(req,250));
+  if(window.visualViewport)visualViewport.addEventListener('resize',req);
 })();
 </script>
 <script id="yl-color-helpers">
@@ -10010,7 +10013,8 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
         try{ localStorage.setItem("YAYO_COACH_V2", JSON.stringify(state)); }catch(e){}
         if(JSON.stringify(incoming)!==json) schedulePush(key);
         if(!isEditing()){
-          try{const pg=document.querySelector(".page.active")?.id;if(pg&&typeof window.showPage==="function")window.showPage(pg,true)}catch(e){}
+          if(typeof window.ylScheduleRender==="function"){window.ylScheduleRender()}
+          else{try{const pg=document.querySelector(".page.active")?.id;if(pg&&typeof window.showPage==="function")window.showPage(pg,true)}catch(e){}}
         }
       }, err=>{ yv62Log("suscripción de '"+key+"' terminó: "+(err && err.code)); });
     });
@@ -10990,7 +10994,7 @@ function renderEditor(){
 let rT=null;const schedule=()=>{clearTimeout(rT);rT=setTimeout(renderEditor,60)};
 document.addEventListener('input',e=>{if(e.target.closest&&e.target.closest('#v22Meals'))schedule()},true);
 document.addEventListener('change',e=>{if(e.target.closest&&e.target.closest('#v22Meals'))schedule()},true);
-function watchEditor(){const h=$('v22Meals');if(!h||h.dataset.yv72)return;h.dataset.yv72='1';new MutationObserver(ms=>{if(ms.some(m=>[...m.addedNodes,...m.removedNodes].some(n=>n.nodeType===1&&!(n.classList.contains('yv72-food-mac')||n.classList.contains('yv72-meal-sum')))))schedule()}).observe(h,{childList:true,subtree:true});schedule()}
+function watchEditor(){const h=$('v22Meals');if(!h||h.dataset.yv72)return;h.dataset.yv72='1';/* YL · ignora los cambios que hacen los propios totales (antes se re-escribían ~16 veces por segundo) */new MutationObserver(ms=>{if(ms.some(m=>!(m.target&&m.target.closest&&m.target.closest('.yv72-meal-sum,.yv72-food-mac,#yv72DayTotals'))&&[...m.addedNodes,...m.removedNodes].some(n=>n.nodeType===1&&!(n.classList.contains('yv72-food-mac')||n.classList.contains('yv72-meal-sum')||n.id==='yv72DayTotals'))))schedule()}).observe(h,{childList:true,subtree:true});schedule()}
 setInterval(watchEditor,800);
 
 /* completar valores de un alimento (enfocado) */
@@ -12147,6 +12151,7 @@ function glow(){
 /* ================= ciclo ================= */
 const oShow=window.showPage;
 window.showPage=function(id){const r=oShow&&oShow.apply(this,arguments);setTimeout(()=>{tick();if(id==='coachDiet')injectCalc();if(id==='userProgress')paintRM();markLibraryActive()},260);return r};
+window.ylNavLib=function(){try{userNavLibrary();markLibraryActive()}catch(e){}};
 function tick(){try{labelRows()}catch(e){}try{explainExercises();lockDays();pdfButtons()}catch(e){}try{weighOptions()}catch(e){}try{injectCalc()}catch(e){}try{userNavLibrary();markLibraryActive()}catch(e){}try{glow();lazyImgs()}catch(e){}}
 new MutationObserver(()=>{if(window.__yv74t)return;window.__yv74t=setTimeout(()=>{window.__yv74t=null;tick()},150)}).observe(document.body,{childList:true,subtree:true});
 setInterval(tick,1500);
@@ -12454,8 +12459,8 @@ window.saveState=function(){
 </style>
 <style id="yl-mobile-fit">
 /* YL · ajustes de celular */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation;overflow-x:hidden;overflow-x:clip}
-body{overscroll-behavior-x:none}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+a,button,input,select,textarea,label,[onclick],[role=button]{touch-action:manipulation}
 #yv71Save{top:calc(env(safe-area-inset-top,0px) + 72px)!important;max-width:calc(100vw - 32px);white-space:nowrap}
 .topbar{padding-top:max(10px,env(safe-area-inset-top,0px))!important;min-height:calc(62px + env(safe-area-inset-top,0px))!important}
 .topbar .avatar,.topbar .menu-button{flex:0 0 auto;touch-action:manipulation}
@@ -12714,6 +12719,43 @@ body.yl-shake #loginScreen,body.yl-shake #app.active{animation:ylShake .22s cubi
   fade(root.querySelector('.yl-dim'),[{opacity:1},{opacity:.85,offset:.55},{opacity:0}],R+160,0,'ease-in');
   setTimeout(()=>{const lg=document.querySelector('.yv63-logo');if(lg){lg.classList.add('yl-hit');setTimeout(()=>lg.classList.remove('yl-hit'),600)}},R+40);
   setTimeout(()=>root.remove(),R+260);
+})();
+</script>
+<script id="yl-stable-ui">
+/* =========================================================
+   YL · PANTALLA ESTABLE
+   1) Cuando llegan cambios de otro dispositivo, la pantalla se actualiza
+      solo cuando la persona deja de tocar/desplazarse (2,5 s), una sola vez
+      aunque lleguen varios cambios juntos, y conservando dónde estaba.
+   2) "Ejercicios" del menú inferior se pone en el mismo instante en que se
+      dibuja el menú (antes aparecía y desaparecía, y los íconos saltaban).
+========================================================= */
+(function(){
+  "use strict";
+  let lastTouch=0,timer=0;
+  const mark=()=>{lastTouch=Date.now()};
+  ['touchstart','touchmove','pointerdown','wheel','keydown','scroll'].forEach(ev=>window.addEventListener(ev,mark,{passive:true,capture:true}));
+  function busy(){
+    if(document.querySelector('.yv72-focus,.yv58-signup-overlay,.yv74-menu,#sidebar.open'))return true;
+    const a=document.activeElement;return !!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  }
+  function scrollers(){return [document.scrollingElement||document.documentElement,...document.querySelectorAll('.main,.content,.page.active')].filter(e=>e&&e.scrollHeight>e.clientHeight+2)}
+  function render(){
+    timer=0;
+    if(Date.now()-lastTouch<2500||busy()){timer=setTimeout(render,1200);return}
+    const pg=document.querySelector('.page.active');if(!pg||typeof window.showPage!=='function')return;
+    const pos=scrollers().map(e=>[e,e.scrollTop]);
+    try{window.showPage(pg.id,true)}catch(e){console.error(e)}
+    pos.forEach(([e,t])=>{try{e.scrollTop=t}catch(_){}});
+  }
+  window.ylScheduleRender=function(){if(!timer)timer=setTimeout(render,500)};
+
+  const nav=()=>{try{window.ylNavLib&&window.ylNavLib()}catch(e){}};
+  const bn=window.buildNavigation;
+  if(typeof bn==='function')window.buildNavigation=function(){const r=bn.apply(this,arguments);nav();return r};
+  const sp=window.showPage;
+  if(typeof sp==='function')window.showPage=function(){const r=sp.apply(this,arguments);nav();return r};
+  setTimeout(nav,0);
 })();
 </script>
 <script id="yl-session">
