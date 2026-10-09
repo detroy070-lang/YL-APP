@@ -9621,7 +9621,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.08-s';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.08-t';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -11014,16 +11014,29 @@ const REF_STATES={'pechuga de pollo':['pesado cocido','pesado en crudo','cocido'
 function refRows(){return (window.YAYO_EXCHANGE_DB||[]).map(r=>({name:r.name,n:norm(r.name),kcal:r.kcal,p:r.p,c:r.c,f:r.f}))}
 function custom(){state.foodNutrition=state.foodNutrition&&typeof state.foodNutrition==='object'?state.foodNutrition:{};return state.foodNutrition}
 const keyOf=(name,st)=>norm(name)+'|'+norm(st||'');
+/* YL · la lista de alimentos y las dietas guardan el estado como "crudo", "cocido"
+   o "listo", pero la tabla de valores lo nombra "pesado en crudo", "pesado cocido"
+   o "tal cual se come". Se busca con ambas formas (primero la original). */
+const ST_ALIAS={'crudo':['pesado en crudo','cruda'],'cruda':['crudo','pesado en crudo'],'cocido':['pesado cocido','cocida'],'cocida':['cocido','pesado cocido'],'listo':['tal cual se come','lista','listos','listas'],'lista':['listo','tal cual se come','listas'],'listas':['lista','listo','tal cual se come'],'pesado en crudo':['crudo','cruda'],'pesado cocido':['cocido','cocida'],'tal cual se come':['listo','lista']};
 function lookup(name,st){
+  const s0=norm(st||'');const tries=[st].concat(ST_ALIAS[s0]||[]);
+  for(const v of tries){const r=lookup0(name,v);if(r)return r}
+  return null;
+}
+function lookup0(name,st){
   const n=norm(name),s=norm(st||'');if(!n)return null;
   const c=custom()[keyOf(name,st)];
   if(c)return {kcal:c.kcal,p:c.p,c:c.c,f:c.f,src:'coach',srcLabel:c.source||'Valores del coach',partial:[c.kcal,c.p,c.c,c.f].some(v=>v==null)};
   const t=TCAC.find(r=>r.names.includes(n)&&r.states.includes(s||'listo'));
-  if(t)return {kcal:t.kcal,p:t.p,c:t.c,f:t.f,calcio:t.calcio,src:'tcac',srcLabel:'TCAC 2018 · '+t.code,note:t.note,partial:[t.kcal,t.p,t.c,t.f].some(v=>v==null)};
+  const tPartial=t&&[t.kcal,t.p,t.c,t.f].some(v=>v==null);
+  if(t&&!tPartial)return {kcal:t.kcal,p:t.p,c:t.c,f:t.f,calcio:t.calcio,src:'tcac',srcLabel:'TCAC 2018 · '+t.code,note:t.note,partial:false};
+  /* YL · si la ficha TCAC está incompleta (le faltan macros), se usa la referencia
+     completa para que la dieta no sume calorías sin carbohidratos/proteína/grasa */
   const refs=refRows();
   let r=refs.find(x=>x.n===n)||refs.find(x=>s&&x.n===n+' '+(s==='cocido'?'cocido':s))||refs.find(x=>s==='cocido'&&(x.n===n+' cocida'));
   if(r){const ok=REF_STATES[r.n];if(ok&&!ok.includes(s||'listo'))r=null}
-  if(r)return {kcal:r.kcal,p:r.p,c:r.c,f:r.f,src:'ref',srcLabel:'Referencia interna (sin fuente TCAC)',partial:false};
+  if(r)return {kcal:r.kcal,p:r.p,c:r.c,f:r.f,src:'ref',srcLabel:t?'Referencia interna (ficha TCAC '+t.code+' incompleta)':'Referencia interna (sin fuente TCAC)',partial:false};
+  if(t)return {kcal:t.kcal,p:t.p,c:t.c,f:t.f,calcio:t.calcio,src:'tcac',srcLabel:'TCAC 2018 · '+t.code,note:t.note,partial:true};
   return null;
 }
 function portion(food){
