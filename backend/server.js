@@ -10,6 +10,8 @@ const path = require('path');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const zlib = require('zlib');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,7 +55,37 @@ app.use((req, res, next) => {
   if (/^\/(backend|node_modules)(\/|$)/i.test(req.path)) return res.status(404).end();
   next();
 });
-app.use(express.static(path.join(__dirname, '..')));
+// La página principal se envía comprimida (1,4 MB -> ~0,4 MB): carga mucho
+// más rápido en celulares. Se recomprime sola si el archivo cambia.
+const INDEX_FILE = path.join(__dirname, '..', 'index.html');
+let indexCache = { mtime: 0, raw: null, gz: null, etag: '' };
+function cargarIndex() {
+  const st = fs.statSync(INDEX_FILE);
+  if (st.mtimeMs !== indexCache.mtime) {
+    const raw = fs.readFileSync(INDEX_FILE);
+    indexCache = { mtime: st.mtimeMs, raw, gz: zlib.gzipSync(raw, { level: 9 }), etag: '"' + crypto.createHash('sha1').update(raw).digest('hex').slice(0, 20) + '"' };
+  }
+  return indexCache;
+}
+function enviarIndex(req, res) {
+  try {
+    const c = cargarIndex();
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.set('Cache-Control', 'no-cache'); // siempre revisa si hay versión nueva
+    res.set('ETag', c.etag);
+    res.set('Vary', 'Accept-Encoding');
+    if (req.headers['if-none-match'] === c.etag) return res.status(304).end();
+    if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+      res.set('Content-Encoding', 'gzip');
+      return res.send(c.gz);
+    }
+    res.send(c.raw);
+  } catch (e) {
+    res.status(500).send('No se pudo cargar la app.');
+  }
+}
+app.get(['/', '/index.html'], enviarIndex);
+app.use(express.static(path.join(__dirname, '..'), { index: false }));
 
 // ===============================================
 // CONECTAR MONGODB
@@ -798,13 +830,7 @@ app.all('/api/*', (req, res) => {
 // SERVIR INDEX.HTML (IMPORTANTE!)
 // ===============================================
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
-});
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
-});
+app.get('*', enviarIndex);
 
 // ===============================================
 // INICIAR SERVIDOR
