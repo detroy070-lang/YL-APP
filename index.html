@@ -8857,6 +8857,8 @@ document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{if(document.get
    if(isCoach){
      showErr('Las contraseñas de coach (Yayo / Laura) no se pueden cambiar desde aquí. Contacta al administrador.');return;
    }
+   /* YL · por seguridad la contraseña solo la restablece el coach */
+   showErr('Por seguridad, tu contraseña la restablece tu coach. Escríbele y en segundos te envía una nueva.');return;
    found.password=pass;
    if(typeof saveState==='function')saveState();
    yv61CloseForgot();
@@ -8948,8 +8950,8 @@ document.addEventListener("DOMContentLoaded",()=>setTimeout(()=>{if(document.get
  }
  window.login=function(){
    const raw=$('loginUser')?.value.trim()||'', pass=$('loginPassword')?.value||'';if(!raw||!pass){alert('Escribe usuario y contraseña.');return}
-   if(['yayo','laura'].includes(norm(raw))){if(pass!=='1234'){alert('Usuario o contraseña incorrectos.');return}enter(coachName(raw),'coach');return}
-   const found=users().find(u=>norm(u.name)===norm(raw));if(!found||pass!==(found.password||'1234')){alert('Usuario o contraseña incorrectos.');return}
+   if(['yayo','laura'].includes(norm(raw))){if(!window.__ylAuthOK){alert('Usuario o contraseña incorrectos.');return}enter(coachName(raw),'coach');return}
+   const found=users().find(u=>norm(u.name)===norm(raw));if(!found||!window.__ylAuthOK){alert('Usuario o contraseña incorrectos.');return}
    if(found.mustSetPassword){yv65OpenSetPassword(found);return}
    enter(found.name,'user',found)
  };
@@ -9619,7 +9621,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.07-e';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.08-s';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -9682,6 +9684,65 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
   const bridge={state:"checking"};
   window.ylBridge=bridge;
 
+  /* ---------- YL · SESIÓN SEGURA ----------
+     El servidor entrega los datos solo a quien inició sesión (cookie
+     segura). Mientras nadie ha entrado, el puente espera. Las contraseñas
+     nunca se guardan dentro de los datos: se envían aparte, cifradas en
+     el servidor, y solo quedan en la memoria de este dispositivo mientras
+     la página está abierta (para mostrarlas al coach al crear un acceso). */
+  const auth={state:"unknown",info:null,waiters:[],expiredShown:false};
+  const pw=new Map();
+  function openGate(info){auth.state="in";auth.info=info||auth.info;auth.waiters.splice(0).forEach(f=>{try{f()}catch(e){}})}
+  function gate(){return auth.state==="in"?Promise.resolve():new Promise(r=>auth.waiters.push(r))}
+  let meP=null;
+  function me(){
+    if(!meP){
+      meP=(async()=>{
+        for(let i=0;i<40;i++){
+          try{
+            const r=await fetch("/api/auth/me",{cache:"no-store",credentials:"same-origin"});
+            if(r.status===200){const d=await r.json();openGate(d);return "in"}
+            if(r.status===401){if(auth.state!=="in")auth.state="out";return auth.state}
+          }catch(e){if(auth.state!=="in")auth.state="offline";return auth.state}
+          await new Promise(res=>setTimeout(res,2000)); /* servidor iniciando: reintenta */
+        }
+        if(auth.state!=="in")auth.state="offline";return auth.state;
+      })();
+    }
+    return meP;
+  }
+  function expired(){
+    if(auth.expiredShown||auth.state!=="in")return;
+    auth.expiredShown=true;
+    try{alert("Tu sesión se cerró (por seguridad o porque cambió tu contraseña). Vuelve a ingresar.")}catch(e){}
+    try{window.ylClearDevice&&window.ylClearDevice()}catch(e){}
+    location.reload();
+  }
+  window.ylAuth={
+    me,expired,
+    loggedIn:openGate,
+    get state(){return auth.state},
+    get info(){return auth.info},
+    /* contraseña conocida en este dispositivo (recién creada/cambiada) */
+    pwOf(u){if(!u)return "";return (typeof u.password==="string"&&u.password)||pw.get(String(u.id))||""},
+    rememberPw(uid,p){if(uid!=null&&p)pw.set(String(uid),p)}
+  };
+
+  async function syncPasswords(list){
+    if(!Array.isArray(list))return list;
+    for(const u of list){
+      if(!u||typeof u!=="object"||typeof u.password!=="string"||!u.password)continue;
+      const uid=String(u.id);
+      if(pw.get(uid)===u.password)continue;
+      try{
+        const r=await req("POST","/api/auth/password",{uid,password:u.password,name:u.name||""});
+        if(r.ok)pw.set(uid,u.password);
+        else if(r.status!==401)console.warn("[YL] no se pudo guardar la contraseña de",u.name,r.status);
+      }catch(e){console.warn("[YL] contraseña",e)}
+    }
+    return list.map(u=>{if(u&&typeof u==="object"&&"password" in u){const c=Object.assign({},u);delete c.password;return c}return u});
+  }
+
   const cache={};
   const listeners={};
   let bulk=null, poller=null, polling=false;
@@ -9696,6 +9757,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
       body:body!==undefined?JSON.stringify(body):undefined
     });
     let data=null;try{data=await r.json()}catch(e){}
+    if(r.status===401)expired();
     return {ok:r.ok,status:r.status,data};
   }
 
@@ -9766,6 +9828,9 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
   async function setDoc(k,obj){
     try{await loadAll()}catch(e){}
     let value=obj&&Object.prototype.hasOwnProperty.call(obj,"value")?obj.value:null;
+    /* la lista de contraseñas emitidas solo vive en este dispositivo */
+    if(k==="issuedKeys"){const c0=cache[k];cache[k]={exists:true,value:clone(value),version:c0&&c0.version||0,updatedAt:c0&&c0.updatedAt};return}
+    if(k==="users")value=await syncPasswords(value);
     let merged=false;
     for(let i=0;i<5;i++){
       const c=cache[k];
@@ -9858,6 +9923,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
         },
         body:blob
       });
+      if(r.status===401)expired();
       if(!r.ok)throw new Error("HTTP "+r.status);
       const j=await r.json();
       return {url:j.url};
@@ -9867,8 +9933,13 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
   let probe=null;
   function online(){
     if(!probe){
-      probe=loadAll().then(()=>{bridge.state="on";return true})
-        .catch(e=>{bridge.state="off";console.info("[YL puente] servidor no disponible, la app sigue en modo local:",e&&e.message||e);return false});
+      probe=(async()=>{
+        const st=await me();
+        if(st==="offline")throw new Error("sin conexión");
+        await gate();               /* espera a que alguien inicie sesión */
+        await loadAll();
+        bridge.state="on";return true;
+      })().catch(e=>{bridge.state="off";console.info("[YL puente] servidor no disponible, la app sigue en modo local:",e&&e.message||e);return false});
     }
     return probe;
   }
@@ -10577,7 +10648,22 @@ function accessMessage(u){
   return `¡Hola ${u.fullName||u.name}! Ya tienes acceso a YAYO.\n\nUsuario: ${u.name}\nContraseña: ${u.password}\n\n1. Abre el link de la app que te compartí.\n2. Escribe tu usuario y contraseña tal cual.\n3. Toca "Ingresar" y listo: ya verás tu panel.`;
 }
 window.yv68ShowAccess=function(id,isNew,obj){
-  const u=obj||byId(id);if(!u)return;
+  let u=obj||byId(id);if(!u)return;
+  /* YL · las contraseñas se guardan cifradas: solo se conoce la recién creada en este dispositivo */
+  const known=window.ylAuth?window.ylAuth.pwOf(u):(u.password||'');
+  if(!known){
+    overlay('yv68AccessOverlay',`<div class="yv58-signup-card yv68-access">
+      <div class="yv68-access-head"><div class="yv68-check">🔒</div><div><h2>Acceso de ${esc(u.name)}</h2><p class="yv58-signup-sub" style="margin:0">La contraseña está guardada de forma segura y no se puede volver a ver.</p></div></div>
+      <div class="yv68-cred"><small>USUARIO</small><b>${esc(u.name)}</b><button type="button" onclick="yv68Copy('${esc(u.name)}',this)">Copiar</button></div>
+      <p class="yv58-signup-sub">Si ${esc(u.fullName||u.name)} olvidó su contraseña o necesitas enviársela otra vez, genera una nueva. La anterior deja de funcionar.</p>
+      <div class="yv65-share-actions">
+        <button class="btn btn-red" type="button" onclick="yv68NewPassword('${esc(String(u.id))}')">Generar nueva contraseña</button>
+        <button class="btn" type="button" onclick="yv68Close('yv68AccessOverlay')">Cerrar</button>
+      </div>
+    </div>`);
+    return;
+  }
+  if(!u.password)u=Object.assign({},u,{password:known});
   const msg=accessMessage(u);
   const phone=String(u.phone||'').replace(/\D/g,'');
   const wa='https://wa.me/'+(phone?(phone.length===10?'57'+phone:phone):'')+'?text='+encodeURIComponent(msg);
@@ -10748,6 +10834,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{enhanceCards();
 (function(){
   function seed(){
     try{
+      return; /* YL · desactivado: en producción no se crea una cuenta con clave conocida */
       if(localStorage.getItem('yayo_demo_client_removed'))return;
       state.users=Array.isArray(state.users)?state.users:[];
       if(state.users.some(u=>String(u.name||'').trim().toLowerCase()==='cliente.demo'))return;
@@ -11817,8 +11904,9 @@ document.addEventListener('click',e=>{
   e.stopPropagation();let m=document.querySelector('.yv74-menu');if(m){m.remove();return}
   const name=$('topUser')?.textContent||'';
   m=document.createElement('div');m.className='yv74-menu';
-  m.innerHTML=`<div class="yv74-menu-h"><span class="yv74-av">${esc(name[0]||'?').toUpperCase()}</span><div><b>${esc(name)}</b><small>${role()==='coach'?'Coach':'Usuario'}</small></div></div>${(role()==='coach'&&String(sessionStorage.getItem('yayo_active_coach')||'').trim().toLowerCase()!=='laura')?'':'<button type="button" data-a="color">Cambiar mi color</button>'}<button type="button" data-a="out" class="out">Cerrar sesión</button>`;
+  m.innerHTML=`<div class="yv74-menu-h"><span class="yv74-av">${esc(name[0]||'?').toUpperCase()}</span><div><b>${esc(name)}</b><small>${role()==='coach'?'Coach':'Usuario'}</small></div></div>${(role()==='coach'&&String(sessionStorage.getItem('yayo_active_coach')||'').trim().toLowerCase()!=='laura')?'':'<button type="button" data-a="color">Cambiar mi color</button>'}<button type="button" data-a="pass">Cambiar mi contraseña</button><button type="button" data-a="out" class="out">Cerrar sesión</button>`;
   document.body.appendChild(m);
+  const pbtn=m.querySelector('[data-a="pass"]');if(pbtn)pbtn.onclick=()=>{m.remove();window.ylChangePassword&&window.ylChangePassword()};
   m.querySelector('[data-a="out"]').onclick=()=>{m.remove();window.logout()};
   const cbtn=m.querySelector('[data-a="color"]');if(cbtn)cbtn.onclick=()=>{m.remove();window.yv74PickColor&&window.yv74PickColor(true)};
 },true);
@@ -12760,11 +12848,15 @@ body.yl-shake #loginScreen,body.yl-shake #app.active{animation:ylShake .22s cubi
 </script>
 <script id="yl-session">
 /* =========================================================
-   YL · SESIÓN RECORDADA
-   Al entrar se guarda quién es (coach o usuario) en este dispositivo.
-   Si se recarga la página o se cierra la app, vuelve a entrar solo,
-   hasta que la persona toque "Cerrar sesión" (o pasen 30 días).
-   Si el usuario fue eliminado o puesto en pausa, no entra.
+   YL · SESIÓN
+   - El servidor guarda la sesión en una cookie segura (30 días).
+     Al recargar o volver a abrir la app, se entra solo si la sesión
+     sigue siendo válida en el servidor.
+   - Sin internet: si este dispositivo ya tenía la sesión abierta,
+     se puede seguir viendo la información guardada en él.
+   - "Cerrar sesión" cierra la sesión en el servidor y BORRA los datos
+     guardados en este dispositivo (para que el siguiente que lo use
+     no vea información de nadie).
 ========================================================= */
 (function(){
   "use strict";
@@ -12785,61 +12877,202 @@ body.yl-shake #loginScreen,body.yl-shake #app.active{animation:ylShake .22s cubi
   }
   setInterval(remember,2000);
   document.addEventListener('visibilitychange',remember);
-  const baseLogout=window.logout;
-  window.logout=function(){try{localStorage.removeItem(KEY)}catch(e){}return baseLogout&&baseLogout.apply(this,arguments)};
 
-  function restore(){
-    const s=read();if(!s||appOn()||typeof window.enter!=='function')return finish();
+  window.ylClearDevice=function(){
+    ['yl_session_v1','YAYO_COACH_V2','YAYO_V42_RECOVERY','yayo_v26_users','yayo_v27_users','yayo_backend_last_sync','yayo_active_coach','yayo_v31_coach','yayo_last_brand','yayo_last_selected_user']
+      .forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+    try{Object.keys(localStorage).filter(k=>/^yayo_v2[5-7]_/.test(k)).forEach(k=>localStorage.removeItem(k))}catch(e){}
+    try{sessionStorage.clear()}catch(e){}
+  };
+
+  const baseLogout=window.logout;
+  window.logout=function(){
+    try{fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',keepalive:true})}catch(e){}
+    try{baseLogout&&baseLogout.apply(this,arguments)}catch(e){console.error(e)}
+    window.__ylLeaving=true;
+    window.ylClearDevice();
+    setTimeout(()=>location.reload(),120);
+  };
+  /* si alguien guarda algo mientras se cierra la sesión, no se vuelve a escribir en el dispositivo */
+  const baseSave=window.saveState;
+  if(typeof baseSave==='function')window.saveState=function(){if(window.__ylLeaving)return true;return baseSave.apply(this,arguments)};
+
+  function enterAs(info){
+    if(!info||appOn()||typeof window.enter!=='function')return false;
+    if(info.rol==='coach'){window.enter(info.coach==='laura'?'Laura':'Yayo','coach');return true}
+    let us=[];try{us=(typeof state!=='undefined'&&state&&state.users)||[]}catch(e){}
+    let u=us.find(x=>String(x.id)===String(info.uid));
+    if(!u&&info.user){u=info.user;try{state.users.push(u)}catch(e){}}
+    if(!u||u.mustSetPassword||String(u.status).toLowerCase()==='pausado')return false;
+    window.enter(u.name,'user',u);return true;
+  }
+  window.ylEnterAs=enterAs;
+
+  function finish(){document.body.classList.remove('yl-restoring')}
+  async function waitReady(ms){
+    const t0=Date.now();
+    while(Date.now()-t0<ms){
+      const b=window.yv62Backend,br=window.ylBridge;
+      if((b&&b.ready)||(br&&br.state==='off'))return;
+      await new Promise(r=>setTimeout(r,150));
+    }
+  }
+  async function restore(){
+    const hint=read();
+    if(hint)document.body.classList.add('yl-restoring');
+    setTimeout(finish,9000); /* nunca esconder el formulario más de 9 s */
     try{
-      if(s.role==='coach'){window.enter(s.coach==='laura'?'Laura':'Yayo','coach')}
-      else{
-        let us=[];try{us=(typeof state!=='undefined'&&state&&state.users)||[]}catch(e){}
-        const u=us.find(x=>String(x.id)===String(s.uid));
-        if(!u||u.status==='Pausado'||u.mustSetPassword){localStorage.removeItem(KEY);return finish()}
-        window.enter(u.name,'user',u);
+      const st=window.ylAuth?await window.ylAuth.me():'offline';
+      if(st==='in'){
+        await waitReady(25000);
+        const typed=($('loginUser')&&$('loginUser').value)||($('loginPassword')&&$('loginPassword').value);
+        if(!appOn()&&!typed){
+          if(enterAs(window.ylAuth.info)){try{window.yv72ApplyBrand&&window.yv72ApplyBrand()}catch(e){}}
+        }
+      }else if(st==='offline'&&hint&&!appOn()){
+        /* sin conexión: abrir con lo guardado en este dispositivo */
+        if(hint.role==='coach')enterAs({rol:'coach',coach:hint.coach});
+        else enterAs({rol:'user',uid:hint.uid});
+        try{window.yv72ApplyBrand&&window.yv72ApplyBrand()}catch(e){}
+      }else if(st==='out'){
+        try{localStorage.removeItem(KEY)}catch(e){}
       }
-      try{window.yv72ApplyBrand&&window.yv72ApplyBrand()}catch(e){}
-    }catch(e){console.error('[YL sesión]',e);try{localStorage.removeItem(KEY)}catch(_){}}
+    }catch(e){console.error('[YL sesión]',e)}
     finish();
   }
-  function finish(){document.body.classList.remove('yl-restoring')}
-  if(read()){
-    document.body.classList.add('yl-restoring');
-    /* espera a que lleguen los datos del servidor (máx. 8 s) para reconocer al usuario en cualquier dispositivo */
-    const t0=Date.now();
-    (function wait(){
-      const br=window.ylBridge,b=window.yv62Backend;
-      const ready=!br||br.state==='off'||(b&&b.ready);
-      if(ready||Date.now()-t0>8000){setTimeout(restore,120);return}
-      setTimeout(wait,150);
-    })();
-  }
+  restore();
+})();
+</script>
+<script id="yl-forgot">
+/* YL · ¿Olvidaste tu contraseña?: por seguridad la restablece el coach
+   (antes cualquiera podía cambiar la contraseña de otra persona). */
+(function(){
+  "use strict";
+  window.yv61OpenForgot=function(){
+    document.getElementById('yv61ForgotOverlay')?.remove();
+    const box=document.createElement('div');box.id='yv61ForgotOverlay';box.className='yv58-signup-overlay';
+    box.innerHTML=`<div class="yv58-signup-card" role="dialog" aria-modal="true">
+      <button type="button" class="yv58-signup-close" aria-label="Cerrar" onclick="yv61CloseForgot()">×</button>
+      <h2>¿Olvidaste tu contraseña?</h2>
+      <p class="yv58-signup-sub">Tranquilo. Por seguridad, tu contraseña solo la puede restablecer tu coach.</p>
+      <ol class="yv58-signup-sub" style="padding-left:18px;line-height:1.6;margin:0 0 16px">
+        <li>Escríbele a tu coach por WhatsApp.</li>
+        <li>En segundos te envía una contraseña nueva.</li>
+        <li>Entra con tu usuario y esa contraseña.</li>
+      </ol>
+      <button class="btn btn-red" type="button" style="width:100%" onclick="yv61CloseForgot()">Entendido</button>
+    </div>`;
+    box.addEventListener('click',e=>{if(e.target===box)box.remove()});
+    document.body.appendChild(box);
+  };
+  window.yv61CloseForgot=function(){document.getElementById('yv61ForgotOverlay')?.remove()};
+  window.yv61DoForgot=function(){window.yv61OpenForgot()};
+})();
+</script>
+<script id="yl-change-password">
+/* YL · Cambiar mi contraseña (coach: pide la actual; cliente: su sesión basta) */
+(function(){
+  "use strict";
+  const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  window.ylChangePassword=function(){
+    const info=window.ylAuth&&window.ylAuth.info;
+    if(!info){alert('Para cambiar la contraseña necesitas conexión a internet.');return}
+    const coach=info.rol==='coach';
+    const body=`<div class="yl-pass">
+      ${coach?'<div class="form-group"><label>CONTRASEÑA ACTUAL</label><input id="ylPassOld" type="password" autocomplete="current-password"></div>':''}
+      <div class="form-group"><label>NUEVA CONTRASEÑA</label><input id="ylPassNew" type="password" autocomplete="new-password" placeholder="Mínimo 6 caracteres, una letra y un número"></div>
+      <div class="form-group"><label>CONFIRMAR NUEVA CONTRASEÑA</label><input id="ylPassNew2" type="password" autocomplete="new-password"></div>
+      <div id="ylPassErr" class="yv58-signup-error" style="display:none"></div>
+      <p class="yv72-sub" style="margin:6px 0 0">${coach?'Tus otras sesiones abiertas (otros celulares o computadores) se cerrarán.':'Tu coach no podrá ver tu contraseña: queda guardada de forma segura.'}</p>
+    </div>`;
+    let w=null,sending=false;
+    w=window.yv72FocusSheet({title:'Cambiar mi contraseña',sub:coach?'Por seguridad te pedimos la actual.':'',ok:'Guardar contraseña',body,
+      onOk:()=>{
+        if(sending)return false;
+        const g=id=>(w.querySelector('#'+id)||{}).value||'';
+        const err=w.querySelector('#ylPassErr');const show=m=>{err.textContent=m;err.style.display='block'};
+        const n1=g('ylPassNew'),n2=g('ylPassNew2');
+        if(coach&&!g('ylPassOld')){show('Escribe tu contraseña actual.');return false}
+        if(n1.length<6||!/[a-zA-Z]/.test(n1)||!/[0-9]/.test(n1)){show('La nueva contraseña debe tener al menos 6 caracteres, una letra y un número.');return false}
+        if(n1!==n2){show('Las contraseñas no coinciden.');return false}
+        sending=true;const ok=w.querySelector('.yv72-ok');if(ok){ok.disabled=true;ok.textContent='Guardando…'}
+        const url=coach?'/api/auth/coach-password':'/api/auth/password';
+        const payload=coach?{actual:g('ylPassOld'),nueva:n1}:{uid:info.uid,password:n1};
+        fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+          .then(async r=>{let d=null;try{d=await r.json()}catch(e){}
+            if(!r.ok){show((d&&d.error)||'No se pudo cambiar la contraseña.');return}
+            if(!coach&&window.ylAuth)window.ylAuth.rememberPw(info.uid,n1);
+            w.classList.remove('in');document.body.classList.remove('yv72-lock');setTimeout(()=>w.remove(),200);
+            try{(window.gyfaToast||window.toast||function(){})('Contraseña actualizada.')}catch(e){}
+          })
+          .catch(()=>show('No pudimos conectar con el servidor. Intenta de nuevo.'))
+          .finally(()=>{sending=false;if(ok){ok.disabled=false;ok.textContent='Guardar contraseña'}});
+        return false;
+      }});
+    setTimeout(()=>{const f=w&&w.querySelector('input');if(f)f.focus()},250);
+  };
 })();
 </script>
 <script id="yl-login-wait">
-/* YL · Antes de validar el login espera a que lleguen los datos del
-   servidor, para que un cliente que entra desde un celular nuevo sea
-   reconocido. Si el servidor no responde en 20 s, sigue en modo local. */
+/* =========================================================
+   YL · LOGIN SEGURO
+   El usuario y la contraseña los valida el servidor. Si son correctos,
+   el servidor abre la sesión, llegan los datos de esa persona (solo los
+   suyos si es cliente) y la app entra como siempre.
+========================================================= */
 (function(){
+  "use strict";
   const base=window.login;
   if(typeof base!=="function")return;
-  let waiting=false;
+  const $=id=>document.getElementById(id);
+  let busy=false;
+  function btn(on){
+    const b=document.querySelector('.login-button');if(!b)return;
+    if(on){if(!b.dataset.ylt)b.dataset.ylt=b.textContent;b.disabled=true;b.textContent='Conectando…'}
+    else{b.disabled=false;if(b.dataset.ylt)b.textContent=b.dataset.ylt}
+  }
+  function paused(msg){
+    msg=msg||'Tu cuenta está en pausa. Escríbele a tu coach para reactivarla.';
+    try{(window.gyfaToast||window.toast||function(){})(msg)}catch(e){}
+    const card=document.querySelector('.login-card');let n=$('yv68PausedMsg');
+    if(card&&!n){n=document.createElement('div');n.id='yv68PausedMsg';n.className='yv58-signup-error';card.insertBefore(n,card.querySelector('.login-button'))}
+    if(n)n.textContent=msg;
+  }
+  async function waitReady(ms){
+    const t0=Date.now();
+    while(Date.now()-t0<ms){
+      const b=window.yv62Backend,br=window.ylBridge;
+      if(b&&b.ready)return true;
+      if(br&&br.state==='off')return false;
+      await new Promise(r=>setTimeout(r,150));
+    }
+    return false;
+  }
   window.login=async function(){
     const self=this,args=arguments;
-    const br=window.ylBridge;
-    const ready=()=>{const b=window.yv62Backend;return !br||br.state==="off"||(b&&b.ready)};
-    if(!ready()){
-      if(waiting)return;
-      waiting=true;
-      const btn=document.querySelector(".login-button");
-      const txt=btn?btn.textContent:"";
-      if(btn){btn.disabled=true;btn.textContent="Conectando…"}
-      const t0=Date.now();
-      while(!ready()&&Date.now()-t0<20000){await new Promise(r=>setTimeout(r,200))}
-      if(btn){btn.disabled=false;btn.textContent=txt}
-      waiting=false;
-    }
-    return base.apply(self,args);
+    const raw=(($('loginUser')&&$('loginUser').value)||'').trim(),pass=($('loginPassword')&&$('loginPassword').value)||'';
+    if(!raw||!pass)return base.apply(self,args);
+    if(busy)return;
+    busy=true;btn(true);
+    try{$('yv68PausedMsg')&&$('yv68PausedMsg').remove()}catch(e){}
+    try{
+      let r,d=null;
+      try{
+        r=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:raw,password:pass})});
+        try{d=await r.json()}catch(e){}
+      }catch(e){alert('No pudimos conectar con el servidor. Revisa tu internet e intenta de nuevo.');return}
+      if(r.status===403){paused(d&&d.error);return}
+      if(!r.ok){alert((d&&d.error)||'Usuario o contraseña incorrectos.');return}
+      /* el servidor no respondía cuando se abrió la página: recargar ya con la sesión abierta */
+      if(window.ylBridge&&window.ylBridge.state==='off'){location.reload();return}
+      if(window.ylAuth)window.ylAuth.loggedIn(d);
+      await waitReady(25000);
+      if(d&&d.rol==='user'){
+        try{const us=state.users=Array.isArray(state.users)?state.users:[];if(!us.some(x=>String(x.id)===String(d.uid))&&d.user)us.push(d.user)}catch(e){}
+      }
+      window.__ylAuthOK=true;
+      try{base.apply(self,args)}finally{window.__ylAuthOK=false}
+    }finally{busy=false;btn(false)}
   };
 })();
 </script>
