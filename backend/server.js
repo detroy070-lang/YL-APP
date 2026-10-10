@@ -646,6 +646,45 @@ function combinarCliente(key, completo, enviado, s) {
   return completo;
 }
 
+// ---------- biblioteca de plantillas (dietas y rutinas) ----------
+// Compartida: la ven y editan las dos coaches. Privada: solo la ve y cambia quien la creó.
+const BIBLIOTECAS = ['libraryDiets', 'libraryRoutines'];
+const minus = v => String(v == null ? '' : v).trim().toLowerCase();
+function esDeCoach(dueno, quien) {
+  const d = minus(dueno);
+  return !!d && (d === minus(quien.nombre) || d === minus(quien.coach));
+}
+// Privada de otra coach: no se muestra y no se puede tocar desde esta sesión
+function esPrivadaAjena(x, quien) {
+  if (!x || typeof x !== 'object' || x.scope !== 'private') return false;
+  if (!minus(x.owner)) return false; // sin dueño conocido: visible para las dos
+  return !esDeCoach(x.owner, quien);
+}
+// Lo que ve una coach de una biblioteca
+function vistaCoachBiblioteca(key, value, quien) {
+  if (!BIBLIOTECAS.includes(key) || !Array.isArray(value)) return value;
+  return value.filter(x => !esPrivadaAjena(x, quien));
+}
+// Combina lo que envía una coach con lo guardado: conserva las privadas de la otra coach
+function combinarBiblioteca(completo, enviado, quien) {
+  const base = Array.isArray(completo) ? completo : [];
+  const ajenas = base.filter(x => esPrivadaAjena(x, quien));
+  const ids = new Set(ajenas.map(x => String(x && x.id)));
+  const previos = new Map(base.map(x => [String(x && x.id), x]));
+  const propios = (Array.isArray(enviado) ? enviado : [])
+    .filter(x => x && typeof x === 'object' && !ids.has(String(x.id)))
+    .map(x => {
+      const previo = previos.get(String(x.id));
+      // el dueño no cambia: una plantilla nueva es de quien la crea
+      const owner = previo ? (previo.owner || quien.nombre) : quien.nombre;
+      let scope = x.scope === 'private' ? 'private' : 'shared';
+      // solo el dueño puede hacer privada una plantilla
+      if (!esDeCoach(owner, quien) && previo) scope = previo.scope || 'shared';
+      return Object.assign({}, x, { owner, scope });
+    });
+  return propios.concat(ajenas);
+}
+
 // Nunca se guardan contraseñas dentro de los usuarios de la app
 function limpiarUsuarios(value) {
   if (!Array.isArray(value)) return value;
@@ -663,6 +702,7 @@ app.get('/api/state', conSesion, async (req, res) => {
       if (d.key === 'issuedKeys') f.value = [];
       if (d.key === 'users') f.value = limpiarUsuarios(f.value);
       if (req.quien.rol === 'user') f.value = vistaCliente(d.key, f.value, req.quien);
+      else f.value = vistaCoachBiblioteca(d.key, f.value, req.quien);
       out[d.key] = f;
     });
     res.set('Cache-Control', 'no-store');
@@ -690,6 +730,7 @@ function vistaDe(req, key, d) {
   if (key === 'issuedKeys') f.value = [];
   if (key === 'users') f.value = limpiarUsuarios(f.value);
   if (req.quien.rol === 'user') f.value = vistaCliente(key, f.value, req.quien);
+  else f.value = vistaCoachBiblioteca(key, f.value, req.quien);
   return f;
 }
 
@@ -728,6 +769,10 @@ app.put('/api/state/:key', conSesion, async (req, res) => {
       }
       const completo = actual ? formatoEstado(actual).value : (key === 'progressLogs' ? {} : []);
       value = combinarCliente(key, completo, value, q);
+    } else if (BIBLIOTECAS.includes(key)) {
+      // la coach no puede borrar ni cambiar las privadas de la otra coach
+      const completo = actual ? formatoEstado(actual).value : [];
+      value = combinarBiblioteca(completo, value, q);
     }
 
     if (key === 'users') value = limpiarUsuarios(value);

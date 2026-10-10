@@ -6843,6 +6843,7 @@ for(let i=1;i<=5;i++)defs.push({id:"R"+i,goal:"Recomposición",title:"Recomposic
 for(let i=1;i<=3;i++)defs.push({id:"FV"+i,goal:"Fisiculturismo · Volumen",title:"Fisiculturismo · Volumen "+i,kind:"volumen",variant:0,desc:"Estructura editable de 6 comidas con distribución pre y post entrenamiento."});
 for(let i=1;i<=2;i++)defs.push({id:"FC"+i,goal:"Fisiculturismo · Corte / definición extrema",title:"Fisiculturismo · Corte "+i,kind:"corte",variant:0,desc:"Estructura editable para fase de corte. Debe individualizarse antes de asignarla."});
 window.YAYO_GENERIC_DIETS=defs;
+window.v34MealsFor=function(d){return mealsFor(d)};
 
 function mealsFor(d){
  const base=JSON.parse(JSON.stringify(V34_BASE[d.kind][d.variant]||V34_BASE[d.kind][0]));
@@ -9621,7 +9622,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.09-w';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.09-y';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -10075,7 +10076,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 ========================================================= */
 (function(){
   "use strict";
-  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs"];
+  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines"];
   let dbNs=null, assetsNs=null, ready=false, suppress=false;
   const timers={};
 
@@ -13500,6 +13501,406 @@ body.yl-shake #loginScreen,body.yl-shake #app.active{animation:ylShake .22s cubi
     host.appendChild(box);
   }
   new MutationObserver(()=>{if(document.getElementById('yv39RotationHost')&&!document.getElementById('yv39RotationHost').dataset.ylr)userHost()}).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
+<style id="yl-library-css">
+.yl-lib-btn{background:#26262a;color:#fff;border:1px solid #3a3a40;border-radius:99px;padding:9px 14px;font-weight:800;font-size:11px;letter-spacing:.04em;cursor:pointer;margin-right:8px}
+.yl-lib-btn.red{background:#aaff00;color:#0b0b0c;border-color:#aaff00}
+.yl-lib{display:flex;flex-direction:column;gap:10px;max-height:70vh}
+.yl-lib-tabs{display:flex;gap:6px}
+.yl-lib-tabs button{flex:1;background:#17171a;color:#a1a1aa;border:1px solid #2e2e33;border-radius:12px;padding:9px;font-weight:800;font-size:11px;letter-spacing:.05em;cursor:pointer}
+.yl-lib-tabs button.on{background:#aaff00;color:#0b0b0c;border-color:#aaff00}
+.yl-lib-bar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px}
+.yl-lib-bar input,.yl-lib-bar select,.yl-lib-assign select{width:100%;min-width:0;box-sizing:border-box;background:#101012;border:1px solid #2a2a2e;border-radius:10px;color:#fff;padding:9px;font-size:16px}
+.yl-lib-list{display:flex;flex-direction:column;gap:8px;overflow:auto;padding-right:2px}
+.yl-lib-item{background:#141416;border:1px solid #26262a;border-radius:14px;padding:11px 12px}
+.yl-lib-item h4{margin:0 0 4px;font-size:14px;color:#fff}
+.yl-lib-item small{display:block;color:#a1a1aa;font-size:11px;line-height:1.45}
+.yl-lib-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;padding:2px 8px;border-radius:99px;margin:4px 4px 0 0;background:#26262a;color:#c8c8cc}
+.yl-lib-tag.sh{background:#0f2b2a;color:#5eead4}.yl-lib-tag.pr{background:#2a1d08;color:#fbbf24}.yl-lib-tag.ge{background:#1e1b4b;color:#c4b5fd}
+.yl-lib-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.yl-lib-acts button{background:#26262a;color:#fff;border:0;border-radius:99px;padding:6px 11px;font-size:11px;font-weight:800;cursor:pointer}
+.yl-lib-acts button.g{background:#aaff00;color:#0b0b0c}
+.yl-lib-acts button.d{background:#3a1212;color:#fca5a5}
+.yl-lib-assign{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.yl-lib-assign button,.yl-lib-add button{background:#aaff00;color:#0b0b0c;border:0;border-radius:10px;padding:9px 12px;font-weight:900;font-size:12px;cursor:pointer}
+.yl-lib-add{display:flex;gap:6px;flex-wrap:wrap}
+.yl-lib-add button{background:#26262a;color:#fff}
+.yl-lib-note{font-size:11px;color:#8e8e93;line-height:1.45;margin:0}
+.yl-lib-banner{padding:10px 12px;border-radius:12px;background:#0f2b2a;color:#99f6e4;font-size:12px;line-height:1.45;margin-bottom:10px}
+.yl-lib-empty{padding:18px;text-align:center;color:#8e8e93;font-size:12px}
+</style>
+<script id="yl-library">
+/* =========================================================
+   YL · BIBLIOTECA DE PLANTILLAS (Gate C)
+   - Dos bibliotecas: dietas (libraryDiets) y rutinas (libraryRoutines).
+   - Ámbito: "compartida" (ven y editan Yayo y Laura) o "privada" (solo
+     la coach que la creó). Es un filtro de la app; los datos viajan
+     al servidor igual que el resto del coach, que los ve todos.
+   - Las 30 dietas genéricas son plantillas iniciales editables. Usar una
+     crea una COPIA para el cliente; la plantilla no cambia.
+   - Asignar envía una copia personalizada al cliente (yv42Assign).
+   - Valores nutricionales: se calculan desde el catálogo ICBF al guardar.
+========================================================= */
+(function(){
+  "use strict";
+  const KD="libraryDiets", KR="libraryRoutines";
+  const COACHES=["yayo","laura"];
+  const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const norm=s=>String(s==null?"":s).trim().toLowerCase();
+  const who=()=>state.currentCoach||localStorage.getItem("yayo_v31_coach")||"Coach";
+  const otherCoach=()=>COACHES.includes(norm(who()))&&norm(who())==="yayo"?"Laura":"Yayo";
+  const ensure=()=>{
+    if(!Array.isArray(state[KD]))state[KD]=[];
+    if(!Array.isArray(state[KR]))state[KR]=[];
+  };
+  ensure();
+  const clone=x=>JSON.parse(JSON.stringify(x));
+  const uid=()=>"L"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const save=()=>{try{window.saveState&&window.saveState()}catch(e){console.error("[YL biblioteca]",e)}};
+  const toast=m=>{try{gyfaToast?.(m)}catch(e){}};
+
+  /* ---- nutrición desde el catálogo ICBF ---- */
+  function nutrition(meals){
+    const D=window.YL_FOODDB; const t={kcal:0,p:0,c:0,f:0}; let partial=0;
+    (meals||[]).forEach(m=>(m.foods||[]).forEach(f=>{
+      const r=D?D.lookup(f.name,f.state):null;
+      if(!r||r.kcal==null){partial++;return}
+      const g=(Number(f.grams)||0)/100;
+      t.kcal+=(r.kcal||0)*g; t.p+=(r.p||0)*g; t.c+=(r.c||0)*g; t.f+=(r.f||0)*g;
+    }));
+    const r1=n=>Math.round(n*10)/10;
+    return {calories:Math.round(t.kcal),macros:{protein:r1(t.p),carbs:r1(t.c),fat:r1(t.f)},partial};
+  }
+
+  /* ---- sembrar las 30 genéricas (idempotente) ---- */
+  function seedGenerics(){
+    if(typeof currentRole!=='undefined'&&currentRole==='user')return 0;
+    ensure();
+    const have=new Set(state[KD].filter(x=>x.genericId).map(x=>x.genericId));
+    const defsList=window.YAYO_GENERIC_DIETS||[];
+    let added=0;
+    defsList.forEach(d=>{
+      if(have.has(d.id))return;
+      const meals=(window.v34MealsFor?window.v34MealsFor(d):[]).map(m=>({name:m[0],time:m[1],foods:m[2].map(f=>({name:f[0],grams:f[1],state:f[2]}))}));
+      const n=nutrition(meals);
+      const payload={name:d.title,meals,notes:d.desc||"",calories:n.calories,macros:n.macros};
+      state[KD].push({id:"G-"+d.id,kind:"diet",genericId:d.id,name:d.title,goal:d.goal||"",scope:"shared",
+        owner:"Plantilla YL",source:"generic",payload,partial:n.partial,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),updatedBy:"Sistema"});
+      added++;
+    });
+    if(added)save();
+    return added;
+  }
+
+  const listOf=kind=>kind==="diet"?state[KD]:state[KR];
+  const visible=it=>it.scope==="shared"||norm(it.owner)===norm(who());
+  function addItem(kind,name,payload,scope,source,extra){
+    ensure();
+    const now=new Date().toISOString();
+    const item=Object.assign({id:uid(),kind,name:name||"Plantilla",scope:scope||"shared",owner:who(),source:source||"manual",
+      payload:clone(payload),createdAt:now,updatedAt:now,updatedBy:who()},extra||{});
+    listOf(kind).push(item); save(); return item;
+  }
+  function clients(){
+    const all=(window.users?window.users():state.users)||[];
+    return all.filter(u=>u&&!COACHES.includes(norm(u.name)));
+  }
+
+  /* ---- payload del editor de dietas (mismo formato que v22SaveDiet) ---- */
+  function dietFromEditor(){
+    const meals=[].slice.call(document.querySelectorAll("#v22Meals .v22-meal")).map(m=>({
+      name:(m.querySelector(".meal-name")||{}).value||"Comida",
+      time:(m.querySelector(".meal-time")||{}).value||"",
+      foods:[].slice.call(m.querySelectorAll(".v22-food")).map(f=>({
+        name:(f.querySelector("input[list]")||{}).value||"",
+        grams:+((f.querySelector(".grams")||{}).value)||0,
+        state:(f.querySelector(".state")||{}).value||""})).filter(f=>String(f.name).trim())
+    }));
+    const name=(((document.getElementById("v22DietName")||{}).value)||"").trim()||"Plan nutricional";
+    const notes=(((document.getElementById("yv53DietNotes")||{}).value)||"").trim();
+    const n=nutrition(meals);
+    return {name,meals,notes,calories:n.calories,macros:n.macros,_partial:n.partial};
+  }
+
+  /* ---- cargar una plantilla en el editor (la edición crea o actualiza la copia) ---- */
+  function loadIntoEditor(item){
+    if(typeof showPage==="function")showPage("coachDiet",true);
+    setTimeout(()=>{
+      const pane=document.getElementById("v22DietPane"),gen=document.getElementById("v34GenericPane");
+      if(gen)gen.classList.remove("active");if(pane)pane.hidden=false;
+      const nm=document.getElementById("v22DietName");if(nm)nm.value=item.payload.name||item.name;
+      const nt=document.getElementById("yv53DietNotes");if(nt)nt.value=item.payload.notes||"";
+      const c=document.getElementById("v22Meals");if(c)c.innerHTML="";
+      (item.payload.meals||[]).forEach(m=>{
+        v22AddMeal(m.name,m.time);
+        const meal=[...document.querySelectorAll("#v22Meals .v22-meal")].at(-1);
+        const foods=meal&&meal.querySelector(".v22-foods");if(!foods)return;
+        foods.innerHTML="";
+        (m.foods||[]).forEach(f=>v22AddFood(foods,f.name,f.grams,f.state));
+      });
+      window.ylLibEditing=item.id;
+      toast("Plantilla cargada: "+item.name+". Cambios en el editor no tocan la biblioteca hasta que guardes.");
+      renderBanner();
+    },250);
+  }
+
+  function renderBanner(){
+    const host=document.getElementById("v22Meals");if(!host)return;
+    let b=document.getElementById("ylLibBanner");
+    const it=window.ylLibEditing?state[KD].find(x=>x.id===window.ylLibEditing):null;
+    if(!it){if(b)b.remove();return}
+    if(!b){b=document.createElement("div");b.id="ylLibBanner";b.className="yl-lib-banner";host.before(b)}
+    b.innerHTML=`Editando plantilla: <b>${esc(it.name)}</b>. Puedes actualizarla o guardarla como nueva. <button class="yl-lib-btn" style="margin:6px 0 0" onclick="ylLibCancelEdit()">Salir de la plantilla</button>`;
+  }
+  window.ylLibCancelEdit=function(){window.ylLibEditing=null;renderBanner()};
+
+  /* ---- guardar desde el editor ---- */
+  window.ylLibSaveFromEditor=function(){
+    const p=dietFromEditor();
+    if(!p.meals.some(m=>m.foods.length)){toast("Agrega al menos un alimento antes de guardar en la biblioteca.");return}
+    const editing=window.ylLibEditing?state[KD].find(x=>x.id===window.ylLibEditing):null;
+    const body=`<div class="yl-lib">
+      <p class="yl-lib-note">${editing?`Estás editando <b>${esc(editing.name)}</b>.`:"Nueva plantilla de dieta."}</p>
+      <input id="ylLibName" class="search" style="width:100%;box-sizing:border-box;padding:10px;background:#101012;border:1px solid #2a2a2e;border-radius:10px;color:#fff;font-size:16px" value="${esc(editing?editing.name:p.name)}" placeholder="Nombre de la plantilla">
+      <select id="ylLibScope" style="background:#101012;border:1px solid #2a2a2e;border-radius:10px;color:#fff;padding:10px;font-size:16px">
+        <option value="shared" ${!editing||editing.scope==="shared"?"selected":""}>Compartida (Yayo y Laura)</option>
+        <option value="private" ${editing&&editing.scope==="private"?"selected":""}>Privada (solo yo)</option></select>
+      <p class="yl-lib-note">Valores: ${p.calories} kcal · P ${p.macros.protein} g · C ${p.macros.carbs} g · G ${p.macros.fat} g${p._partial?` · ${p._partial} alimento(s) sin dato`:""}</p>
+      <div class="yl-lib-add">
+        ${editing?`<button class="yl-lib-btn red" onclick="ylLibSaveChoice('update')">Actualizar plantilla</button>`:""}
+        <button class="yl-lib-btn ${editing?"":"red"}" onclick="ylLibSaveChoice('new')">${editing?"Guardar como nueva":"Guardar en biblioteca"}</button>
+      </div></div>`;
+    window.__ylLibPending=p;
+    openModal(editing?"Guardar plantilla":"Guardar en biblioteca",body);
+  };
+  window.ylLibSaveChoice=function(mode){
+    const p=window.__ylLibPending;if(!p)return;
+    const name=(document.getElementById("ylLibName")||{}).value||p.name;
+    const scope=(document.getElementById("ylLibScope")||{}).value||"shared";
+    const payload={name:p.name,meals:p.meals,notes:p.notes,calories:p.calories,macros:p.macros};
+    if(mode==="update"&&window.ylLibEditing){
+      const it=state[KD].find(x=>x.id===window.ylLibEditing);
+      if(it){Object.assign(it,{name,scope,payload:clone(payload),updatedAt:new Date().toISOString(),updatedBy:who()});save();toast("Plantilla actualizada: "+name)}
+    }else{
+      addItem("diet",name,payload,scope,"manual");toast("Guardada en la biblioteca: "+name);
+      window.ylLibEditing=null;renderBanner();
+    }
+    closeModal();
+  };
+
+  /* ---- pantalla de biblioteca ---- */
+  let tab="diet", q="", fScope="all", fSource="all";
+  function itemCard(it){
+    const isDiet=it.kind==="diet";
+    const p=it.payload||{};
+    const info=isDiet?`${p.calories?p.calories+" kcal · P "+(p.macros?.protein??"—")+" g · C "+(p.macros?.carbs??"—")+" g · G "+(p.macros?.fat??"—")+" g":"Sin valores"} · ${(p.meals||[]).length} comidas`:`${(p.exercises||[]).length} ejercicios${p.goal?" · "+esc(p.goal):""}`;
+    const tags=[
+      it.scope==="shared"?'<span class="yl-lib-tag sh">COMPARTIDA</span>':'<span class="yl-lib-tag pr">PRIVADA</span>',
+      it.source==="generic"?'<span class="yl-lib-tag ge">GENÉRICA</span>':'',
+      it.partial?'<span class="yl-lib-tag">con alimentos sin dato</span>':'',
+      `<span class="yl-lib-tag">creada por ${esc(it.owner)}</span>`
+    ].join("");
+    const id=esc(it.id);
+    return `<div class="yl-lib-item"><h4>${esc(it.name)}</h4><small>${info}</small><div>${tags}</div>
+      <div class="yl-lib-assign" style="margin-top:8px"><select data-lib-user="${id}" aria-label="Cliente">${clients().map(u=>`<option value="${esc(u.id)}">${esc(u.name)}</option>`).join("")||'<option value="">Sin clientes</option>'}</select><button onclick="ylLibAssign('${id}')">Asignar copia</button></div>
+      <div class="yl-lib-acts">
+        <button class="g" onclick="ylLibUse('${id}')">${isDiet?"Usar y editar":"Editar en constructor"}</button>
+        <button onclick="ylLibDuplicate('${id}')">Duplicar</button>
+        <button onclick="ylLibToggleScope('${id}')">${it.scope==="shared"?"Hacer privada":"Compartir"}</button>
+        <button class="d" onclick="ylLibDelete('${id}')">Eliminar</button>
+      </div></div>`;
+  }
+  function renderLib(){
+    const host=document.getElementById("ylLibBody");if(!host)return;
+    const list=(listOf(tab==="diet"?"diet":"routine")||[]).filter(visible).filter(it=>
+      (fScope==="all"||(fScope==="shared"?it.scope==="shared":it.scope==="private"))&&
+      (fSource==="all"||(fSource==="generic"?it.source==="generic":it.source!=="generic"))&&
+      (!q||norm(it.name).includes(norm(q))));
+    host.innerHTML=`<div class="yl-lib-list">${list.map(itemCard).join("")||'<div class="yl-lib-empty">No hay plantillas con ese filtro.</div>'}</div>`;
+  }
+  function screen(){
+    seedGenerics();
+    openModal("Biblioteca",`<div class="yl">
+      <div class="yl-lib-tabs"><button class="${tab==="diet"?"on":""}" onclick="ylLibTab('diet')">DIETAS</button><button class="${tab==="routine"?"on":""}" onclick="ylLibTab('routine')">RUTINAS</button></div>
+      <div class="yl-lib-bar">
+        <input id="ylLibQ" placeholder="Buscar plantilla…" value="${esc(q)}" oninput="ylLibSearch(this.value)">
+        <select onchange="ylLibFilter('scope',this.value)"><option value="all" ${fScope==="all"?"selected":""}>Todas</option><option value="shared" ${fScope==="shared"?"selected":""}>Compartidas</option><option value="private" ${fScope==="private"?"selected":""}>Privadas</option></select>
+        <select onchange="ylLibFilter('source',this.value)"><option value="all" ${fSource==="all"?"selected":""}>Todo</option><option value="generic" ${fSource==="generic"?"selected":""}>Genéricas</option><option value="own" ${fSource==="own"?"selected":""}>Creadas</option></select>
+      </div>
+      <div class="yl-lib-add">
+        ${tab==="diet"?`<button onclick="ylLibAddFromDiets()">+ Desde mis dietas</button>`:""}
+        ${tab==="routine"?`<button onclick="ylLibAddFromRoutines()">+ Desde mis rutinas</button>`:""}
+        ${tab==="diet"?`<button onclick="ylLibRestoreGenerics()">Restaurar genéricas</button>`:""}
+      </div>
+      <p class="yl-lib-note">Las plantillas compartidas las ven y editan ambas coaches. Asignar crea una copia para el cliente: cambiarla después no toca la plantilla.</p>
+      <div id="ylLibBody"></div></div>`);
+    renderLib();
+  }
+  window.ylLibOpen=screen;
+  window.ylLibTab=t=>{tab=t;screen()};
+  window.ylLibSearch=v=>{q=v;renderLib()};
+  window.ylLibFilter=(k,v)=>{if(k==="scope")fScope=v;else fSource=v;renderLib()};
+  window.ylLibRestoreGenerics=()=>{const n=seedGenerics();toast(n?n+" plantilla(s) restauradas":"Las 30 genéricas ya están en la biblioteca");renderLib()};
+
+  function findItem(id){return state[KD].concat(state[KR]).find(x=>x.id===id)}
+  window.ylLibAssign=function(id){
+    const it=findItem(id);if(!it)return;
+    const sel=document.querySelector(`[data-lib-user="${CSS.escape(id)}"]`);
+    const u=sel&&sel.value?clients().find(x=>String(x.id)===String(sel.value)):null;
+    if(!u){toast("Elige un cliente");return}
+    const payload=clone(it.payload);payload.fromLibrary={id:it.id,name:it.name};
+    try{window.yv42Assign(u.id,it.kind==="diet"?"diet":"routine",payload);toast(`${it.kind==="diet"?"Dieta":"Rutina"} asignada a ${u.name} (copia)`)}
+    catch(e){toast(e.message||"No se pudo asignar");console.error(e)}
+  };
+  window.ylLibUse=function(id){const it=findItem(id);if(!it)return;closeModal();if(it.kind==="routine")loadRoutineIntoBuilder(it);else loadIntoEditor(it)};
+  window.ylLibDuplicate=function(id){
+    const it=findItem(id);if(!it)return;
+    addItem(it.kind,it.name+" (copia)",it.payload,it.scope,"manual");toast("Copia creada");renderLib();
+  };
+  window.ylLibToggleScope=function(id){
+    const it=findItem(id);if(!it)return;
+    if(norm(it.owner)!==norm(who())){toast("Solo "+it.owner+" puede cambiar su privacidad. Duplícala para tener tu propia copia.");return}
+    it.scope=it.scope==="shared"?"private":"shared";it.updatedAt=new Date().toISOString();it.updatedBy=who();save();renderLib();
+  };
+  window.ylLibDelete=function(id){
+    const it=findItem(id);if(!it)return;
+    const other=otherCoach();
+    const extra=it.scope==="shared"?` También desaparecerá para ${other}.`:"";
+    openModal("¿Eliminar plantilla?",`<div class="yl-lib"><p class="yl-lib-note">Vas a eliminar <b>${esc(it.name)}</b> de la biblioteca.${extra} Las dietas ya asignadas a clientes no cambian.</p>
+      <div class="yl-lib-add"><button onclick="closeModal()">Cancelar</button><button class="yl-lib-btn red" onclick="ylLibConfirmDelete('${esc(id)}')">Sí, eliminar</button></div></div>`);
+  };
+  window.ylLibConfirmDelete=function(id){
+    ["diet","routine"].forEach(k=>{const L=listOf(k==="diet"?"diet":"routine");const i=L.findIndex(x=>x.id===id);if(i>=0)L.splice(i,1)});
+    save();closeModal();toast("Plantilla eliminada");
+  };
+  window.ylLibAddFromDiets=function(){
+    const src=(state.diets||[]).filter(d=>d&&d.meals);
+    const seen=new Set();
+    const items=src.filter(d=>{const k=norm(d.name)+"|"+JSON.stringify(d.meals).length;if(seen.has(k))return false;seen.add(k);return true});
+    if(!items.length){toast("No hay dietas asignadas para copiar");return}
+    const body=`<div class="yl"><p class="yl-lib-note">Elige una dieta para copiarla a la biblioteca:</p><div class="yl-lib-list">${items.slice(-20).reverse().map((d,i)=>`<button class="yl-lib-item" style="text-align:left;color:#fff" onclick="ylLibCopyFrom('diet',${state.diets.indexOf(d)})"><h4>${esc(d.name||"Dieta")}</h4><small>${(d.meals||[]).length} comidas</small></button>`).join("")}</div></div>`;
+    openModal("Copiar dieta a la biblioteca",body);
+  };
+  window.ylLibAddFromRoutines=function(){
+    const src=(state.routines||[]).filter(r=>r);
+    if(!src.length){toast("No hay rutinas para copiar");return}
+    const body=`<div class="yl"><p class="yl-lib-note">Elige una rutina para copiarla a la biblioteca:</p><div class="yl-lib-list">${src.slice(-20).reverse().map(r=>`<button class="yl-lib-item" style="text-align:left;color:#fff" onclick="ylLibCopyFrom('routine',${state.routines.indexOf(r)})"><h4>${esc(r.name||"Rutina")}</h4><small>${(r.exercises||[]).length} ejercicios</small></button>`).join("")}</div></div>`;
+    openModal("Copiar rutina a la biblioteca",body);
+  };
+  window.ylLibCopyFrom=function(kind,i){
+    const src=kind==="diet"?state.diets[i]:state.routines[i];if(!src)return;
+    const payload=clone(src);
+    if(kind==="diet"){const n=nutrition(payload.meals||[]);payload.calories=payload.calories||n.calories;payload.macros=payload.macros||n.macros}
+    addItem(kind,src.name||"Plantilla",payload,"shared","copia");
+    toast("Copiada a la biblioteca");tab=kind;screen();
+  };
+
+  /* ---- rutinas: constructor "Crear rutina" ↔ biblioteca ---- */
+  const bval=(r,c)=>{const e=r.querySelector("."+c);return e?String(e.value||""):""};
+  function builderRoutine(){
+    const g=id=>{const e=document.getElementById(id);return e?String(e.value||"").trim():""};
+    const exercises=[...document.querySelectorAll("#builderExercises .builder-row")].map(r=>({
+      name:bval(r,"v16-ex-name").trim(),sets:bval(r,"v16-sets"),reps:bval(r,"v16-reps"),
+      rir:bval(r,"v16-rir"),rest:bval(r,"v16-rest"),method:bval(r,"v16-method")||"Tradicional"})).filter(e=>e.name);
+    return {name:g("routineName")||"Rutina",goal:g("routineGoal"),level:g("routineLevel"),exercises};
+  }
+  function setField(id,val){
+    const e=document.getElementById(id);if(!e||val==null||val==="")return;
+    if(e.tagName==="SELECT"&&![...e.options].some(o=>o.value===String(val))){const o=document.createElement("option");o.value=val;o.textContent=val;e.appendChild(o)}
+    e.value=String(val);
+  }
+  function loadRoutineIntoBuilder(item){
+    if(typeof showPage==="function")showPage("coachRoutines",true);
+    setTimeout(()=>{
+      const p=item.payload||{};
+      setField("routineName",p.name||item.name);
+      setField("routineGoal",p.goal);setField("routineLevel",p.level);
+      const c=document.getElementById("builderExercises");if(c)c.innerHTML="";
+      (p.exercises||[]).forEach(e=>{if(typeof window.v16AddBuilderExercise==="function")window.v16AddBuilderExercise(e.name,e)});
+      window.ylLibEditingRoutine=item.id;
+      toast("Rutina cargada: "+item.name+". Los cambios no tocan la biblioteca hasta que guardes.");
+      renderRoutineBanner();
+    },250);
+  }
+  function renderRoutineBanner(){
+    const host=document.getElementById("builderExercises");if(!host)return;
+    let b=document.getElementById("ylLibRBanner");
+    const it=window.ylLibEditingRoutine?state[KR].find(x=>x.id===window.ylLibEditingRoutine):null;
+    if(!it){if(b)b.remove();return}
+    if(!b){b=document.createElement("div");b.id="ylLibRBanner";b.className="yl-lib-banner";host.before(b)}
+    b.innerHTML=`Editando rutina de biblioteca: <b>${esc(it.name)}</b>. Puedes actualizarla o guardarla como nueva. <button class="yl-lib-btn" style="margin:6px 0 0" onclick="ylLibCancelRoutineEdit()">Salir de la rutina</button>`;
+  }
+  window.ylLibCancelRoutineEdit=function(){window.ylLibEditingRoutine=null;renderRoutineBanner()};
+  window.ylLibSaveRoutineFromBuilder=function(){
+    const p=builderRoutine();
+    if(!p.exercises.length){toast("Agrega al menos un ejercicio antes de guardar en la biblioteca.");return}
+    const editing=window.ylLibEditingRoutine?state[KR].find(x=>x.id===window.ylLibEditingRoutine):null;
+    const body=`<div class="yl-lib">
+      <p class="yl-lib-note">${editing?`Estás editando <b>${esc(editing.name)}</b>.`:"Nueva plantilla de rutina."}</p>
+      <input id="ylLibRName" style="width:100%;box-sizing:border-box;padding:10px;background:#101012;border:1px solid #2a2a2e;border-radius:10px;color:#fff;font-size:16px" value="${esc(editing?editing.name:p.name)}" placeholder="Nombre de la plantilla">
+      <select id="ylLibRScope" style="background:#101012;border:1px solid #2a2a2e;border-radius:10px;color:#fff;padding:10px;font-size:16px">
+        <option value="shared" ${!editing||editing.scope==="shared"?"selected":""}>Compartida (Yayo y Laura)</option>
+        <option value="private" ${editing&&editing.scope==="private"?"selected":""}>Privada (solo yo)</option></select>
+      <p class="yl-lib-note">${p.exercises.length} ejercicio(s)${p.goal?" · "+esc(p.goal):""}</p>
+      <div class="yl-lib-add">
+        ${editing?`<button class="yl-lib-btn red" onclick="ylLibSaveRoutineChoice('update')">Actualizar plantilla</button>`:""}
+        <button class="yl-lib-btn ${editing?"":"red"}" onclick="ylLibSaveRoutineChoice('new')">${editing?"Guardar como nueva":"Guardar en biblioteca"}</button>
+      </div></div>`;
+    window.__ylLibPendingR=p;
+    openModal(editing?"Guardar rutina":"Guardar rutina en biblioteca",body);
+  };
+  window.ylLibSaveRoutineChoice=function(mode){
+    const p=window.__ylLibPendingR;if(!p)return;
+    const name=((document.getElementById("ylLibRName")||{}).value||"").trim()||p.name;
+    const scope=(document.getElementById("ylLibRScope")||{}).value||"shared";
+    const payload={name,goal:p.goal,level:p.level,exercises:p.exercises};
+    if(mode==="update"&&window.ylLibEditingRoutine){
+      const it=state[KR].find(x=>x.id===window.ylLibEditingRoutine);
+      if(it){Object.assign(it,{name,scope,payload:clone(payload),updatedAt:new Date().toISOString(),updatedBy:who()});save();toast("Rutina actualizada: "+name)}
+    }else{
+      addItem("routine",name,payload,scope,"manual");toast("Rutina guardada en la biblioteca: "+name);
+      window.ylLibEditingRoutine=null;
+    }
+    renderRoutineBanner();
+    closeModal();
+  };
+  // Crear desde una plantilla automática o vaciar el constructor = ya no es edición de la biblioteca
+  ["v16LoadRoutine"].forEach(n=>{
+    const prev=window[n];
+    if(typeof prev!=="function")return;
+    window[n]=function(){window.ylLibEditingRoutine=null;renderRoutineBanner();return prev.apply(this,arguments)};
+  });
+
+  /* ---- botones en las pantallas del coach ---- */
+  function ensureButtons(){
+    const dp=document.getElementById("coachDiet");
+    if(dp){
+      const head=dp.querySelector(".page-header")||dp.querySelector("header");
+      if(head&&!document.getElementById("ylLibBtnDiet")){
+        const b=document.createElement("button");b.id="ylLibBtnDiet";b.className="yl-lib-btn";b.textContent="BIBLIOTECA";b.onclick=()=>{tab="diet";screen()};
+        const s=document.createElement("button");s.id="ylLibSaveBtn";s.className="yl-lib-btn red";s.textContent="GUARDAR EN BIBLIOTECA";s.onclick=()=>ylLibSaveFromEditor();
+        const g=head.querySelector("button");
+        head.insertBefore(s,g||null);head.insertBefore(b,s);
+      }
+    }
+    const rp=document.getElementById("coachRoutines");
+    if(rp){
+      const head=rp.querySelector(".page-header")||rp.querySelector("header");
+      if(head&&!document.getElementById("ylLibBtnRoutine")){
+        const b=document.createElement("button");b.id="ylLibBtnRoutine";b.className="yl-lib-btn";b.textContent="BIBLIOTECA";b.onclick=()=>{tab="routine";screen()};
+        const s=document.createElement("button");s.id="ylLibSaveRBtn";s.className="yl-lib-btn red";s.textContent="GUARDAR EN BIBLIOTECA";s.onclick=()=>ylLibSaveRoutineFromBuilder();
+        const g=[...head.querySelectorAll("button")].find(x=>/saveRoutine/.test(x.getAttribute("onclick")||""))||head.querySelector("button");
+        head.insertBefore(s,g||null);head.insertBefore(b,s);
+      }
+    }
+    renderBanner();
+    renderRoutineBanner();
+  }
+  setInterval(ensureButtons,900);
+  document.addEventListener("DOMContentLoaded",()=>{ensure();seedGenerics()});
+  setTimeout(()=>{try{seedGenerics()}catch(e){console.error(e)}},1500);
 })();
 </script>
 
