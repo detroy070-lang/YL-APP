@@ -150,13 +150,13 @@ body{background:#000}
                 </div></div></div><div class="list"><div class="list-item"><div><strong>
                     Progresión de cargas
                   </strong><small>
-                    3 usuarios para revisar.
+                    <span id="dashAtencionProgreso">0 clientas para revisar.</span>
                   </small></div><button class="badge badge-red v6-dashboard-action" onclick="showPage('coachProgress',true)">
                   Revisar
                 </button></div><div class="list-item"><div><strong>
                     Chequeos
                   </strong><small>
-                    4 usuarios pendientes.
+                    <span id="dashAtencionChequeos">0 clientas con chequeo pendiente.</span>
                   </small></div><button class="badge badge-yellow v6-dashboard-action" onclick="showPage('coachCheckins',true)">
                   Pendiente
                 </button></div></div></div><div class="module"><div class="module-header"><div class="module-title">
@@ -3375,6 +3375,9 @@ function v6RefreshDashboard(){
   const review=activos.filter(user=>user.progression==='Atención').length;
   const values={dashboardUsersCount:active,dashboardCheckinsCount:pending,dashboardProgressCount:review,dashboardRoutinesCount:(state.routines||[]).length,dashboardRegisteredCount:users.length};
   Object.entries(values).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=value;});
+  const alc=window.ylDashAlcance==='todas'?' (todas)':'';
+  const ap=document.getElementById('dashAtencionProgreso');if(ap)ap.textContent=review+(review===1?' clienta para revisar':' clientas para revisar')+alc+'.';
+  const ac=document.getElementById('dashAtencionChequeos');if(ac)ac.textContent=pending+(pending===1?' clienta con chequeo pendiente':' clientas con chequeo pendiente')+alc+'.';
   const names=document.getElementById('dashboardUserNames');
   if(names){
     names.innerHTML=users.length?users.map(user=>`<div class="list-item"><div><strong>${v6EscapeHtml(user.name)}</strong><small>${v6EscapeHtml(user.goal)} · ${v6EscapeHtml(user.status)}</small></div><button class="badge v6-dashboard-action" onclick="viewUser(${Number(user.id)})">ABRIR</button></div>`).join(''):'<div class="list-item"><span>No hay usuarios registrados.</span></div>';
@@ -6292,7 +6295,7 @@ function syncButton29(pageId,type){
  const head=p.querySelector(".page-header");if(!head||head.querySelector(".v29-sync"))return;
  const b=document.createElement("button");b.className="v29-sync";
  b.textContent=type==="routine"?"Asignar rutina semanal":"Asignar dieta";
- b.onclick=()=>v27ManageUsers();
+ b.onclick=()=>{if(type==="routine"&&typeof window.yv47SaveWeek==="function"&&document.getElementById("yv47Constructor")){window.yv47SaveWeek();return}v27ManageUsers()};
  head.appendChild(b);
 }
 function sync29(){
@@ -6997,7 +7000,7 @@ function ensureCalendar(){
 }
 window.v35RenderHome=function(){
  const p=q("userHome"),u=user();if(!p||!u)return;const d=diet(u),r=routine(u),pct=workoutPct(u),chk=nextCheck(u),ss=sessions(u);
- const dates=[...new Set(ss.map(x=>String(x.date||x.createdAt||"").slice(0,10)).filter(Boolean))].sort();let streak=0,cur=new Date();for(let i=0;i<365;i++){const k=iso(cur);if(dates.includes(k))streak++;else if(i>0)break;cur.setDate(cur.getDate()-1)}
+ const dates=[...new Set(ss.map(x=>String(x.date||x.createdAt||"").slice(0,10)).filter(Boolean))].sort();let streak=window.ylRacha?window.ylRacha(ss):0;
  const kcal=d?.calories||d?.kcal||0,meals=d?.meals?.length||d?.meals||0;
  p.innerHTML=`<div class="v35-user"><section class="v35-hero"><h1>Hola, ${v6EscapeHtml(u.name)}</h1><p>Tu entrenamiento, dieta, calendario y progreso sincronizados con tu coach.</p></section><div class="v35-grid">
  <article class="v35-card wide" onclick="showPage('userRoutine',true)"><div class="v35-kicker">ENTRENAMIENTO</div><h3>${v6EscapeHtml(r?.name||"Rutina semanal")}</h3><p>Abre el entrenamiento correspondiente a hoy y registra lo completado.</p><div class="v35-value">${pct}%</div><div class="v35-progress"><i style="width:${pct}%"></i></div><div class="v35-ring" style="--v:${pct}%"><b>${pct}%</b></div></article>
@@ -7074,7 +7077,7 @@ function dt(a){return (state.diets||[]).filter(x=>same(x,a)||String(x.user||"").
 function rt(a){return (state.routines||[]).filter(x=>same(x,a)||String(x.user||"").toLowerCase()===String(a.name||"").toLowerCase()).at(-1)||(state.assignedRoutines||[]).filter(x=>same(x,a)).at(-1)}
 function dayName(){return ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][new Date().getDay()]}
 function tip(){let a=["Completa el rango de repeticiones con la técnica y el RIR indicados antes de aumentar carga.","Registra peso y repeticiones al terminar cada ejercicio para que la progresión tenga datos útiles.","Respeta los descansos programados: forman parte de la carga total del entrenamiento.","Si una serie pierde técnica, conserva la carga antes de buscar más repeticiones.","La consistencia semanal vale más que compensar sesiones con exceso de volumen.","Usa la Rotación de alimentos para variar el plan sin cambiar arbitrariamente su estructura."];return a[Math.floor(Date.now()/14400000)%a.length]}
-function streak(a){let set=new Set(ss(a).map(x=>String(x.date||x.createdAt||"").slice(0,10)).filter(Boolean)),n=0,d=new Date();for(let i=0;i<365;i++){let k=d.toISOString().slice(0,10);if(set.has(k))n++;else if(i>0)break;d.setDate(d.getDate()-1)}return n}
+function streak(a){return window.ylRacha(ss(a))}
 function nav(id){
  document.querySelectorAll(".y15-bottom-nav,#v35Bottom,#v36Nav").forEach(x=>x.remove());
  let n=document.createElement("nav");n.id="v36Nav";n.className="v36-nav";
@@ -7161,7 +7164,7 @@ function sessions(u){return arr("sessions").filter(x=>same(x,u))}
 function events(u){return arr("calendarEvents").filter(x=>!x.user||same(x,u))}
 function today(){return ylLocalISO()}
 function day(){return ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"][new Date().getDay()]}
-function streak(u){let set=new Set(sessions(u).map(x=>String(x.date||x.createdAt||"").slice(0,10)).filter(Boolean)),n=0,d=new Date();for(let i=0;i<365;i++){let k=d.toISOString().slice(0,10);if(set.has(k))n++;else if(i>0)break;d.setDate(d.getDate()-1)}return n}
+function streak(u){return window.ylRacha(sessions(u))}
 function advice(){const a=["Completa el rango previsto con técnica estable y el RIR indicado antes de aumentar la carga.","Registra peso y repeticiones al terminar cada ejercicio: esos datos alimentan tu próxima progresión.","Cumplir descansos y series programadas forma parte del estímulo; no solo cuenta el peso levantado.","Si la técnica cae antes del rango objetivo, conserva la carga y mejora la ejecución antes de progresar.","Usa Rotación cuando quieras cambiar un alimento sin modificar arbitrariamente la estructura del plan.","La constancia semanal produce datos útiles: registra cada sesión terminada."];return a[Math.floor(Date.now()/14400000)%a.length]}
 function nav(active){
  document.querySelectorAll(".y15-bottom-nav,#v12BottomNav,#v35Bottom,#v36Nav,#yv37Nav").forEach(n=>n.remove());
@@ -7232,7 +7235,7 @@ function same(x,u){return Number(x?.userId)===Number(u?.id)||String(x?.user||"")
 function A(k){return Array.isArray(state?.[k])?state[k]:[]}
 function L(k,u){return A(k).filter(x=>same(x,u)).at(-1)}
 function tip(){let a=["Completa el rango previsto con buena técnica antes de subir la carga.","Registra tu sesión al terminar: así tu progresión tendrá datos reales.","Respeta los descansos programados; también forman parte del entrenamiento.","Usa Rotación si necesitas cambiar un alimento de tu plan.","La constancia semanal vale más que una sesión perfecta."];return a[Math.floor(Date.now()/14400000)%a.length]}
-function streak(u){let ss=A("sessions").filter(x=>same(x,u));let set=new Set(ss.map(x=>String(x.date||x.createdAt||"").slice(0,10)));let n=0,d=new Date();for(let i=0;i<365;i++){if(set.has(d.toISOString().slice(0,10)))n++;else if(i)break;d.setDate(d.getDate()-1)}return n}
+function streak(u){return window.ylRacha(A("sessions").filter(x=>same(x,u)))}
 function nav(active){document.querySelectorAll("#yv38Nav,#yv37Nav,#v36Nav,.y15-bottom-nav").forEach(x=>x.remove());let n=document.createElement("nav");n.id="yv38Nav";[["userHome",I.home,"Inicio"],["userCalendar",I.cal,"Calendario"],["userRoutine",I.train,"Rutina"],["userDiet",I.diet,"Dieta"],["userProgress",I.trend,"Progresión"]].forEach(([id,ic,t])=>{let b=document.createElement("button");b.className=id===active?"active":"";b.innerHTML=ic+t;b.onclick=()=>showPage(id,true);n.appendChild(b)});document.body.appendChild(n)}
 /* QA 10-oct · F03: el Resumen usa la misma fuente que la pantalla Dieta (YAYO_NUTRI). */
 function ylResumenDiet(d){try{if(!d||!Array.isArray(d.meals)||!window.YAYO_NUTRI)return null;const N=window.YAYO_NUTRI;const list=d.meals.flatMap(m=>(m.foods||[]).filter(f=>String(f.name||'').trim()).map(f=>N.portion(f)));const t=N.sum(list);return {kcal:t.has.kcal?t.kcal:0,meals:d.meals.length}}catch(e){return null}}
@@ -7428,16 +7431,57 @@ function aggregate(s,name){
  let rows=(s.exercises||[]).filter(e=>e.name===name);if(!rows.length)return null;
  return {date:s.date,weight:Math.max(...rows.map(x=>Number(x.weight)||0)),reps:Math.max(...rows.map(x=>Number(x.reps)||0)),sets:rows.length}
 }
+/* VIDEO DE REFERENCIA (aprobado 10-oct): el coach pega un link de YouTube por ejercicio.
+   Los clientes solo lo ven. No se suben archivos. */
+function ylYTid(url){
+  const s=String(url||'').trim();if(!s)return null;
+  const m=s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])/);
+  return m?m[1]:null;
+}
+function ylVideoDe(name){const id=((typeof state!=='undefined'&&state&&state.exerciseVideos)||{})[name];return /^[A-Za-z0-9_-]{11}$/.test(String(id||''))?id:null}
+function ylVideoBloque(e){
+  const id=ylVideoDe(e.name);
+  if(!id)return `<div class="yv40-demo yl-vid-vacio" role="note"><span>Sin video todavía${currentRole==='coach'?'. Pega un link abajo.':'. Tu coach puede añadir uno.'}</span></div>`;
+  return `<div class="yv40-demo yl-vid"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="Video de referencia: ${esc(e.name)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+}
+function ylVideoNota(e){
+  if(currentRole!=='coach')return '';
+  const id=ylVideoDe(e.name);
+  return `<div class="yv40-note"><h4>VIDEO DE REFERENCIA</h4>
+    <label style="display:block;font-size:12px;margin:4px 0"><span>Link de YouTube para este ejercicio</span>
+    <input type="url" inputmode="url" autocomplete="off" value="${id?esc('https://youtu.be/'+id):''}" placeholder="https://www.youtube.com/watch?v=..." data-ex="${esc(e.name)}" id="ylVidInput" style="width:100%;margin-top:6px;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a3a3f;background:#0f0f11;color:inherit;font:inherit"></label>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" data-ex="${esc(e.name)}" onclick="ylGuardarVideo(this)" style="min-height:44px;padding:0 16px;border-radius:12px;border:0;background:#e50914;color:#fff;font:inherit;font-weight:600;cursor:pointer">Guardar video</button>${id?`<button type="button" data-ex="${esc(e.name)}" onclick="ylQuitarVideo(this)" style="min-height:44px;padding:0 16px;border-radius:12px;border:1px solid #3a3a3f;background:transparent;color:inherit;font:inherit;cursor:pointer">Quitar</button>`:''}</div>
+    <small id="ylVidMsg" role="status" aria-live="polite" style="display:block;margin-top:6px;color:#8e8e93"></small></div>`;
+}
+window.ylGuardarVideo=function(btn){
+  if(currentRole!=='coach')return;
+  const name=btn.dataset.ex;const msg=$('ylVidMsg');
+  const raw=($('ylVidInput')?.value||'').trim();
+  if(!raw){if(msg)msg.textContent='Pega un link de YouTube, o usa Quitar.';return}
+  const id=ylYTid(raw);
+  if(!id){if(msg)msg.textContent='Ese link no es de YouTube. Usa un link como youtube.com/watch?v=… o youtu.be/…';return}
+  state.exerciseVideos=state.exerciseVideos||{};state.exerciseVideos[name]=id;
+  try{window.saveState&&window.saveState()}catch(e){}
+  window.yv40OpenExercise(name);
+  const m2=$('ylVidMsg');if(m2)m2.textContent='Video guardado.';
+};
+window.ylQuitarVideo=function(btn){
+  if(currentRole!=='coach')return;
+  const name=btn.dataset.ex;
+  if(state.exerciseVideos)delete state.exerciseVideos[name];
+  try{window.saveState&&window.saveState()}catch(e){}
+  window.yv40OpenExercise(name);
+};
 window.yv40OpenExercise=function(name){
  let e=lib(name)||{name},hist=userSessions(name).map(s=>aggregate(s,name)).filter(Boolean),last=hist.at(-1);
  let sheet=$("yv40ExerciseSheet"),modal=$("yv40ExerciseDetail");if(!sheet||!modal)return;
  let description=e.desc||"La biblioteca actual no contiene una descripción técnica adicional para este ejercicio.";
  sheet.innerHTML=`<div class="yv40-sheet-head"><div><div class="yv39-k">${esc(e.muscle||"EJERCICIO")}</div><h2 style="font-size:24px;margin:4px 0">${esc(e.name)}</h2><p class="yv39-muted">${esc(e.type||"Entrenamiento")} · ${esc(e.equipment||"Equipamiento variable")}</p></div><button class="yv40-close" onclick="yv40CloseExercise()">×</button></div>
- <div class="yv40-demo"><svg viewBox="0 0 180 180"><circle cx="90" cy="28" r="14"/><path d="M90 42v55M58 62l32 20 32-20M90 97l-28 50M90 97l28 50M48 53l18 25M132 53l-18 25"/><path d="M36 50v35M144 50v35M28 50h16M136 50h16"/></svg></div>
+ ${ylVideoBloque(e)}
  <div class="yv40-grid"><div class="yv40-info"><b>Músculo</b><small>${esc(e.muscle||"No especificado")}</small></div><div class="yv40-info"><b>Equipamiento</b><small>${esc(e.equipment||"No especificado")}</small></div><div class="yv40-info"><b>Último registro</b><small>${last?`${last.weight} kg · ${last.reps} reps`:"Sin historial todavía"}</small></div><div class="yv40-info"><b>Mejor carga</b><small>${hist.length?Math.max(...hist.map(x=>x.weight))+" kg":"Se calculará al registrar sesiones"}</small></div></div>
  <div class="yv40-note"><h4>EJECUCIÓN / TÉCNICA</h4><p>${esc(description)}</p></div>
  <div class="yv40-note"><h4>HISTORIAL PERSONAL</h4><div class="yv40-history">${hist.length?hist.map(x=>`<span>${new Date(x.date).toLocaleDateString("es-CO",{day:"2-digit",month:"short"})}<b>${x.weight} kg</b>${x.reps} reps</span>`).join(""):"<p>Aún no hay sesiones registradas para este ejercicio.</p>"}</div></div>
- <div class="yv40-note"><h4>DEMOSTRACIÓN</h4><p>La animación es una guía visual de interfaz, no un video técnico del ejercicio. No se añade un video externo hasta que exista una URL verificada en la biblioteca.</p></div>`;
+ ${ylVideoNota(e)}`;
  modal.classList.add("open");document.body.style.overflow="hidden"
 }
 window.yv40CloseExercise=function(){let m=$("yv40ExerciseDetail");if(m)m.classList.remove("open");document.body.style.overflow=""}
@@ -7558,6 +7602,7 @@ function currentDietPayload(){
 document.addEventListener("click",e=>{
  let b=e.target.closest("button");if(!b)return;let t=norm(b.textContent);
  if(t.includes("asignar rutina")||t.includes("asignar entrenamiento")){
+   if(document.getElementById("yv47Constructor"))return;
    let u=selectedUser(),p=currentRoutinePayload();if(u&&p){yv41AssignToUser(u.id,"routine",p);setTimeout(()=>typeof gyfaToast==="function"&&gyfaToast("Rutina asignada solo a "+u.name),50)}
  }
  if(t.includes("asignar dieta")){
@@ -7934,7 +7979,7 @@ function injectWeekly(){
 function wireButtons(){
  document.querySelectorAll("button").forEach(b=>{
    let t=norm(b.textContent);
-   if(/asignar.*rutina semanal|guardar.*rutina semanal/.test(t)){b.onclick=window.yv43SaveWeeklyRoutine}
+   if(/asignar.*rutina semanal|guardar.*rutina semanal/.test(t)&&!document.getElementById("yv47Constructor")){b.onclick=window.yv43SaveWeeklyRoutine}/* QA 11-oct F01: el constructor semanal (yv47) es el único que asigna rutinas */
    if(/asignar.*dieta semanal|guardar.*dieta semanal/.test(t)){b.onclick=window.yv43SaveWeeklyDiet}
  });
 }
@@ -7967,7 +8012,7 @@ let active="Lunes", draft={};
 function ensure(){DAYS.forEach(d=>draft[d]??={name:"Rutina "+d,rest:false,exercises:[]})}
 function exerciseDB(){let pools=[];["exercises","exerciseLibrary","allExercises"].forEach(k=>{if(Array.isArray(window[k]))pools.push(...window[k]);if(Array.isArray(state?.[k]))pools.push(...state[k])});let seen=new Set();return pools.filter(x=>x?.name&&!seen.has(x.name)&&(seen.add(x.name),1))}
 function muscleOf(name){let e=exerciseDB().find(x=>x.name===name);return e?.muscle||e?.group||e?.category||"Otros"}
-function syncState(){ensure();state.routineDraft={name:state.routineDraft?.name||"Rutina semanal",days:JSON.parse(JSON.stringify(draft)),updatedAt:new Date().toISOString()}}
+function syncState(){if(window.yv47SaveWeek)return;/* QA 11-oct F01: el constructor antiguo no pisa el borrador del constructor semanal */ensure();state.routineDraft={name:state.routineDraft?.name||"Rutina semanal",days:JSON.parse(JSON.stringify(draft)),updatedAt:new Date().toISOString()}}
 function load(){let r=state.routineDraft?.days||state.currentRoutine?.days;if(r&&typeof r==="object")DAYS.forEach(d=>{let x=r[d]||r[d.toLowerCase()];if(x)draft[d]=JSON.parse(JSON.stringify(x))});ensure()}
 function host(){return document.getElementById("yv43WeeklyRoutine")||document.getElementById("createRoutine")||document.getElementById("routineBuilder")||document.querySelector('[data-page="createRoutine"]')}
 function stats(){
@@ -8313,8 +8358,17 @@ function mount(){
  let legacy=p.querySelector(":scope > .grid.grid-2");if(legacy)legacy.classList.add("yv46-hide");
  let box=document.createElement("section");box.id="yv47Constructor";box.className="yv47-shell";p.appendChild(box);render()
 }
+function ylDraftOwner(){
+ let u=selectedUser();if(!u)return;
+ let dr=state.routineDraft;
+ if(dr&&String(dr._uid||"")===String(u.id))return;
+ let asg=((state.userAssignments||{})[String(u.id)]||{}).routine;
+ if(asg&&asg.days){state.routineDraft=clone(asg);state.routineDraft._uid=u.id;window.gyfaToast?.("Rutina actual de "+u.name+" cargada para editar.")}
+ else if(dr&&!dr._uid){dr._uid=u.id}
+ else{state.routineDraft={name:"Rutina semanal",days:{},_uid:u.id}}
+}
 function render(){
- let box=document.getElementById("yv47Constructor");if(!box)return;let r=ensure(),u=selectedUser(),d=day();
+ let box=document.getElementById("yv47Constructor");if(!box)return;try{ylDraftOwner()}catch(e){console.error(e)}let r=ensure(),u=selectedUser(),d=day();
  let total=Object.values(r.days).reduce((a,x)=>a+(x.exercises||[]).length,0),sets=Object.values(r.days).reduce((a,x)=>a+(x.exercises||[]).reduce((b,e)=>b+(+e.sets||0),0),0);
  box.innerHTML=`<div class="yv47-top"><div class="yv49-topline"><div><b>${esc(r.name||"Rutina semanal")}</b><div class="yv49-context">${u?"Plan para "+esc(u.name):"Selecciona USUARIO DEL PLAN antes de guardar"}</div></div><button class="yv49-auto-main" onclick="yv47OpenAuto()">Rutinas automáticas · 120</button></div>
  <div class="yv47-days">${DAYS.map(x=>{let z=r.days[x];return `<button class="yv47-day ${x===active?"active":""} ${(z.exercises||[]).length?"done":""} ${z.rest?"rest":""}" onclick="yv47Day('${x}')">${x.slice(0,3)}</button>`}).join("")}</div>
@@ -8333,7 +8387,7 @@ function render(){
 function rows(){
  let a=day().exercises||[];
  if(!a.length)return '<div class="yv47-empty">Pulsa “+ Ejercicio”. En el mismo campo de ejercicio puedes escribir y buscar entre los '+db().length+' ejercicios registrados.</div>';
- return a.map((x,i)=>`<div class="yv47-row" draggable="true" ondragstart="yv47Drag(${i})" ondragover="event.preventDefault()" ondrop="yv47Drop(${i})"><span class="yv47-drag">⋮⋮</span><input class="yv49-exercise-input" value="${esc(x.name)}" list="yv49ExerciseList" placeholder="Buscar ejercicio…" oninput="yv49ExerciseInput(${i},this.value)" onchange="yv49ValidateExercise(${i},this.value)"><input type="number" min="1" max="20" value="${+x.sets||3}" title="Series" aria-label="Series" onchange="yv47Edit(${i},'sets',this.value)"><input value="${esc(x.reps||"8-12")}" title="Repeticiones (ej. 8-12)" aria-label="Repeticiones" onchange="yv47Edit(${i},'reps',this.value)"><input type="number" min="0" max="5" value="${x.rir??2}" title="RIR (repeticiones en reserva)" aria-label="RIR" onchange="yv47Edit(${i},'rir',this.value)"><select title="Tiempo de descanso" aria-label="Descanso" onchange="yv47Edit(${i},'rest',this.value)">${[60,120,180,240,300].map(v=>`<option value="${v}" ${Number(x.rest||90)===v||(v===120&&![60,120,180,240,300].includes(Number(x.rest||90)))?"selected":""}>${v/60} min</option>`).join("")}</select><select title="Método de ejecución" aria-label="Método" onchange="yv47Edit(${i},'method',this.value)">${METHODS.map(m=>`<option ${m===(x.method||"Tradicional")?"selected":""}>${m}</option>`).join("")}</select><button class="yv47-x" onclick="yv47Del(${i})">×</button></div>`).join("")
+ return a.map((x,i)=>`<div class="yv47-row" draggable="true" ondragstart="yv47Drag(${i})" ondragover="event.preventDefault()" ondrop="yv47Drop(${i})"><span class="yv47-drag">⋮⋮</span><input class="yv49-exercise-input" value="${esc(x.name)}" list="yv49ExerciseList" placeholder="Buscar ejercicio…" oninput="yv49ExerciseInput(${i},this.value)" onchange="yv49ValidateExercise(${i},this.value)"><input type="number" min="1" max="20" value="${+x.sets||3}" title="Series" aria-label="Series" oninput="yv47Edit(${i},'sets',this.value)" onchange="yv47Edit(${i},'sets',this.value)"><input value="${esc(x.reps||"8-12")}" title="Repeticiones (ej. 8-12)" aria-label="Repeticiones" oninput="yv47Edit(${i},'reps',this.value)" onchange="yv47Edit(${i},'reps',this.value)"><input type="number" min="0" max="5" value="${x.rir??2}" title="RIR (repeticiones en reserva)" aria-label="RIR" oninput="yv47Edit(${i},'rir',this.value)" onchange="yv47Edit(${i},'rir',this.value)"><select title="Tiempo de descanso" aria-label="Descanso" onchange="yv47Edit(${i},'rest',this.value)">${[60,120,180,240,300].map(v=>`<option value="${v}" ${Number(x.rest||90)===v||(v===120&&![60,120,180,240,300].includes(Number(x.rest||90)))?"selected":""}>${v/60} min</option>`).join("")}</select><select title="Método de ejecución" aria-label="Método" onchange="yv47Edit(${i},'method',this.value)">${METHODS.map(m=>`<option ${m===(x.method||"Tradicional")?"selected":""}>${m}</option>`).join("")}</select><button class="yv47-x" onclick="yv47Del(${i})">×</button></div>`).join("")
 }
 function cardioRows(){
  let a=day().cardio||[];
@@ -8388,12 +8442,36 @@ window.yv49LoadExternalAuto=(routine,mapGoal)=>{
 };
 window.yv47LoadAuto=(goal,level,i)=>{let d=day();if(d.exercises.length&&!confirm("Esto reemplazará los ejercicios actuales de "+active+". ¿Continuar?"))return;d.rest=false;d.exercises=autoExercises(goal,level,i);d.name=`${goal} · ${level} ${i}`;ensure().goal=goal;ensure().level=level;yv47CloseAuto();render();window.gyfaToast?.("Rutina automática cargada en "+active)};
 
+/* QA 11-oct · F01: lo que se ve en el formulario es lo que se asigna.
+   Antes de asignar se copian los valores visibles de cada fila al borrador (aunque el
+   navegador no haya disparado 'change'), y después se verifica lo guardado. */
+window.yv47Flush=function(){
+ let rows=[...document.querySelectorAll('#yv47Rows .yv47-row')],a=day().exercises||[];
+ rows.forEach(row=>{
+  let m=(row.innerHTML.match(/yv47Edit\((\d+),/)||[])[1];if(m==null)return;let x=a[Number(m)];if(!x)return;
+  let q=s=>row.querySelector(s);
+  let nm=q('input.yv49-exercise-input');if(nm&&nm.value.trim())x.name=nm.value.trim();
+  let s=q('input[aria-label=Series]');if(s&&Number(s.value)>0)x.sets=Number(s.value);
+  let r=q('input[aria-label=Repeticiones]');if(r&&r.value.trim())x.reps=r.value.trim();
+  let ri=q('input[aria-label=RIR]');if(ri&&ri.value!==''&&Number(ri.value)>=0)x.rir=Number(ri.value);
+  let de=q('select[aria-label=Descanso]');if(de&&de.value!=='')x.rest=Number(de.value);
+  let me=q('select[aria-label="Método"]');if(me&&me.value)x.method=me.value;
+ });
+};
 window.yv47SaveWeek=()=>{
+ try{window.yv47Flush()}catch(e){console.error(e)}
  let u=selectedUser();if(!u)return window.gyfaToast?.("Selecciona USUARIO DEL PLAN antes de guardar.");
  let r=ensure(),training=Object.values(r.days).filter(d=>!d.rest&&((d.exercises||[]).length||(d.cardio||[]).length));
  if(!training.length)return window.gyfaToast?.("La semana no contiene entrenamientos.");
- for(let d of training){for(let c of (d.cardio||[])){if(!(c.minutes>0))return window.gyfaToast?.("Revisa la duración del cardio.");}for(let e of (d.exercises||[])){if(!String(e.name||"").trim())return window.gyfaToast?.("Hay ejercicios sin nombre.");if(!db().some(x=>x.name===e.name))return window.gyfaToast?.("Ejercicio no reconocido por la biblioteca: "+e.name);if(!(e.sets>0)||!String(e.reps??"").trim()||!(e.rest>=0)||!(e.rir>=0))return window.gyfaToast?.("Revisa series, repeticiones, RIR y descanso.")}}
- try{window.yv42Assign(u.id,"routine",clone(r));state.routineDraft=null;window.gyfaToast?.("Rutina semanal asignada a "+u.name);showPage("coachDashboard",true)}catch(e){console.error(e);window.gyfaToast?.("No se pudo guardar la rutina.")}
+ for(let d of training){for(let c of (d.cardio||[])){if(!(c.minutes>0))return window.gyfaToast?.("Revisa la duración del cardio.");}for(let e of (d.exercises||[])){if(!String(e.name||"").trim())return window.gyfaToast?.("Hay ejercicios sin nombre.");if(!(e.sets>0)||!String(e.reps??"").trim()||!(e.rest>=0)||!(e.rir>=0))return window.gyfaToast?.("Revisa series, repeticiones, RIR y descanso.")}}
+ try{
+  let enviado=clone(r);delete enviado._uid;window.yv42Assign(u.id,"routine",enviado);
+  let guardado=((state.userAssignments||{})[String(u.id)]||{}).routine;
+  let dosis=d=>JSON.stringify((d&&d.exercises||[]).map(e=>[e.name,Number(e.sets),String(e.reps),Number(e.rir),Number(e.rest)]));
+  let conDatos=Object.entries(enviado.days||{}).filter(([k,d])=>!d.rest&&(d.exercises||[]).length);
+  if(!guardado||conDatos.some(([k,d])=>dosis((guardado.days||{})[k])!==dosis(d)))throw new Error("verificación");
+  state.routineDraft=null;window.gyfaToast?.("Rutina semanal asignada a "+u.name);showPage("coachDashboard",true)
+ }catch(e){console.error(e);window.gyfaToast?.("No se pudo guardar la rutina. Revisa los datos e intenta de nuevo.")}
 };
 
 /* Disable old automatic loader from navigating into obsolete builder. */
@@ -9359,6 +9437,7 @@ function monthKey(d){var x=new Date(d);return x.getFullYear()+"-"+String(x.getMo
 
 /* Racha real: días consecutivos con al menos una sesión, contando hacia atrás desde hoy o desde el último entrenamiento. */
 function computeStreak(sessions){
+  if(window.ylRacha)return window.ylRacha(sessions);
   if(!sessions.length)return 0;
   var days={};sessions.forEach(function(s){days[dayKey(s.date)]=true});
   var cursor=new Date();
@@ -9659,7 +9738,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.10-af';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.11-ah';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -10113,7 +10192,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 ========================================================= */
 (function(){
   "use strict";
-  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados"];
+  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados","exerciseVideos"];
   let dbNs=null, assetsNs=null, ready=false, suppress=false;
   const timers={};
 
@@ -14189,4 +14268,43 @@ function ylCoachTitle(){try{let c="";if(typeof currentRole!=="undefined"&&curren
   }
 })();
 </script>
-</body></html>
+<script id="yl-recert-2026-10-11">
+/* QA 11-oct · R01: una sola definición de racha para Inicio y Progresión.
+   Días consecutivos con al menos una sesión, en la fecha local del dispositivo.
+   Varias sesiones el mismo día cuentan como un solo día. Si hoy no hay sesión,
+   la racha sigue viva desde ayer. */
+function ylDiaLocal(v){
+  if(v==null||v==='')return null;const s=String(v);
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const d=new Date(s);if(isNaN(d))return null;
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+window.ylDiaLocal=ylDiaLocal;
+window.ylRacha=function(sesiones){
+  const dias=new Set((sesiones||[]).map(x=>ylDiaLocal(x&&(x.date||x.createdAt))).filter(Boolean));
+  if(!dias.size)return 0;
+  const c=new Date();c.setHours(12,0,0,0);
+  if(!dias.has(ylDiaLocal(c)))c.setDate(c.getDate()-1);
+  let n=0;while(dias.has(ylDiaLocal(c))){n++;c.setDate(c.getDate()-1)}
+  return n;
+};
+/* QA 11-oct · A02: nombre accesible completo en botones de fecha del calendario. */
+(function(){
+  const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const RE=/\(\s*['"](\d{4})-(\d{2})-(\d{2})['"]\s*\)/;
+  function etiquetar(){
+    const hoy=ylDiaLocal(new Date());
+    document.querySelectorAll('button[onclick]').forEach(b=>{
+      if(b.dataset.ylFecha)return;
+      const m=(b.getAttribute('onclick')||'').match(RE);if(!m)return;
+      if(!/^\s*\d{1,2}\b/.test(b.textContent||''))return;
+      b.dataset.ylFecha='1';
+      const iso=m[1]+'-'+m[2]+'-'+m[3];
+      if(!b.getAttribute('aria-label'))b.setAttribute('aria-label',Number(m[3])+' de '+MESES[Number(m[2])-1]+' de '+m[1]+(iso===hoy?', hoy':''));
+      if(iso===hoy&&!b.hasAttribute('aria-current'))b.setAttribute('aria-current','date');
+    });
+  }
+  let t=null;new MutationObserver(()=>{clearTimeout(t);t=setTimeout(etiquetar,60)}).observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('DOMContentLoaded',etiquetar);
+})();
+</script></body></html>

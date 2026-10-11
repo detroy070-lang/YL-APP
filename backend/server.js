@@ -617,7 +617,7 @@ const BLOQUES_LISTA = ['routines', 'diets', 'sessions', 'checkins', 'calendarEve
 // Bloques en forma de objeto organizados por cliente (llave = id o nombre del cliente)
 const OBJ_POR_CLIENTE = ['userAssignments', 'assignmentHistory', 'progressLogs'];
 // Bloques generales que el cliente puede ver pero no cambiar
-const SOLO_LECTURA = ['brands', 'foodNutrition'];
+const SOLO_LECTURA = ['brands', 'foodNutrition', 'exerciseVideos'];
 // Bloques que el cliente sí puede modificar (solo en lo suyo)
 const CLIENTE_ESCRIBE = ['users', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'progressLogs'];
 // Datos de su propia ficha que el cliente NO puede cambiar
