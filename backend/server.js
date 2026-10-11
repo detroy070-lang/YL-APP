@@ -1,959 +1,1047 @@
-/**
- * YAYO APP - BACKEND V64 COMPLETO
- * Node.js + Express + MongoDB + WebSockets + Redis + OAuth + PDF
- * 
- * NUEVAS CARACTERÍSTICAS V64:
- * ✓ Imágenes/videos para ejercicios
- * ✓ OAuth (Google/Facebook login)
- * ✓ WebSockets (notificaciones en tiempo real)
- * ✓ Redis (caching de alimentos)
- * ✓ Reportes PDF de progreso
- * ✓ Upload de archivos multimedia
- * 
- * Instalación:
- * npm install express mongoose cors bcryptjs jsonwebtoken dotenv
- * npm install express-validator multer
- * npm install socket.io redis
- * npm install passport passport-google-oauth20 passport-facebook
- * npm install pdfkit
- * 
- * Uso:
- * node YAYO_BACKEND_V64_COMPLETE.js
- */
+// ===============================================
+// YAYO APP v65 - BACKEND SERVER (Express + MongoDB)
+// ===============================================
 
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bcryptjs = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
-const redis = require('redis');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-require('dotenv').config();
-
-// ========== CONFIGURACIÓN INICIAL ==========
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const zlib = require('zlib');
+const fs = require('fs');
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: process.env.CORS_ORIGIN || '*' },
-  maxHttpBufferSize: 5e6 // 5MB
-});
+const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1); // Render está detrás de un proxy (HTTPS)
 
-// Configurar multer para uploads
-const upload = multer({
-  dest: 'uploads/',
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-  fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'video/mp4', 'video/webm'];
-    if (allowedMimes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Tipo de archivo no permitido'));
-    }
-  }
-});
+// Llave para firmar las sesiones. Debe venir de la variable JWT_SECRET de Render.
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 16) {
+  JWT_SECRET = crypto.randomBytes(48).toString('hex');
+  console.warn('⚠️  JWT_SECRET no está configurado (o es muy corto). Se usará uno temporal: las sesiones se cerrarán cada vez que el servidor reinicie.');
+}
+const SESSION_DAYS = 30;
+const COOKIE = 'yl_s';
+const COACHES = ['yayo', 'laura'];
+const norm = v => String(v == null ? '' : v).trim().toLowerCase();
 
-// Redis client
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379
-});
+// ===============================================
+// MIDDLEWARE
+// ===============================================
 
-redisClient.on('error', (err) => console.error('Redis error:', err));
-redisClient.connect().then(() => console.log('✓ Redis conectado'));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  credentials: true
+}));
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb' }));
-app.use('/uploads', express.static('uploads'));
-
-// Conexión MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/yayo_app_v64';
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  maxPoolSize: 100
-}).then(() => console.log('✓ MongoDB V64 conectado'))
-  .catch(err => console.error('✗ Error MongoDB:', err));
-
-// ========== SCHEMAS MEJORADOS V64 ==========
-
-// Usuario con OAuth support
-const usuarioSchema = new mongoose.Schema({
-  nombre: String,
-  email: { type: String, unique: true, sparse: true },
-  usuario: { type: String, unique: true, sparse: true },
-  contrasena: String,
-  rol: { type: String, enum: ['coach', 'usuario'], default: 'usuario' },
-  estado: { type: String, default: 'activo' },
-  
-  // OAuth
-  googleId: String,
-  facebookId: String,
-  avatar: String,
-  
-  // Preferencias
-  notificacionesActivas: { type: Boolean, default: true },
-  rutinaPreferida: mongoose.Schema.Types.ObjectId,
-  dietaPreferida: mongoose.Schema.Types.ObjectId,
-  
-  // Métricas
-  totalSesiones: { type: Number, default: 0 },
-  ultimaSesion: Date,
-  streakDias: { type: Number, default: 0 },
-  
-  createdAt: { type: Date, default: Date.now },
-  ultimoAcceso: Date
-}, { collection: 'usuarios_v64' });
-
-// Ejercicio con multimedia
-const ejercicioSchema = new mongoose.Schema({
-  nombre: String,
-  descripcion: String,
-  grupo_muscular: String,
-  dificultad: { type: String, enum: ['Principiante', 'Intermedio', 'Avanzado'] },
-  
-  // Multimedia
-  video_url: String, // YouTube o enlace directo
-  imagen_url: String,
-  video_local: String, // Path de archivo subido
-  imagen_local: String,
-  
-  instrucciones: [String],
-  tips: [String],
-  equipamiento: [String],
-  
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'ejercicios_v64' });
-
-// Rutina mejorada
-const rutinaSchema = new mongoose.Schema({
-  coachId: mongoose.Schema.Types.ObjectId,
-  nombre: String,
-  objetivo: String,
-  nivel: String,
-  descripcion: String,
-  
-  ejercicios: [{
-    ejercicioId: mongoose.Schema.Types.ObjectId,
-    nombre: String,
-    series: Number,
-    reps: String,
-    peso: String,
-    descanso: String,
-    video: String,
-    imagen: String,
-    notas: String
-  }],
-  
-  duracion_semanas: Number,
-  frecuencia: String,
-  imagen_portada: String,
-  
-  usuarios_asignados: [mongoose.Schema.Types.ObjectId],
-  
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'rutinas_v64' });
-
-// Sesión mejorada
-const sesionSchema = new mongoose.Schema({
-  usuarioId: mongoose.Schema.Types.ObjectId,
-  rutinaId: mongoose.Schema.Types.ObjectId,
-  coachId: mongoose.Schema.Types.ObjectId,
-  fecha: Date,
-  
-  ejercicios: [{
-    nombre: String,
-    sets: [{
-      peso: Number,
-      reps: Number,
-      rpe: Number,
-      duracion_segundo: Number
-    }],
-    completado: Boolean,
-    notas: String
-  }],
-  
-  completada: Boolean,
-  duracion_minutos: Number,
-  esfuerzo_general: Number, // 1-10
-  sensaciones: String,
-  
-  foto_antes: String,
-  foto_despues: String,
-  
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-}, { collection: 'sesiones_v64' });
-
-// Alimento mejorado
-const alimentoSchema = new mongoose.Schema({
-  nombre: String,
-  kcal: Number,
-  proteina: Number,
-  carbos: Number,
-  grasas: Number,
-  fibra: Number,
-  categoria: String,
-  
-  imagen: String,
-  marca: String,
-  codigo_barras: String,
-  
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'alimentos_v64' });
-
-// Reporte de progreso
-const reporteSchema = new mongoose.Schema({
-  usuarioId: mongoose.Schema.Types.ObjectId,
-  coachId: mongoose.Schema.Types.ObjectId,
-  
-  periodo: { type: String, enum: ['semanal', 'mensual', 'trimestral'] },
-  fecha_inicio: Date,
-  fecha_fin: Date,
-  
-  total_sesiones: Number,
-  sesiones_completadas: Number,
-  porcentaje_cumplimiento: Number,
-  
-  metricas: {
-    peso_inicial: Number,
-    peso_final: Number,
-    grasa_inicial: Number,
-    grasa_final: Number,
-    cintura_inicial: Number,
-    cintura_final: Number,
-    pecho_inicial: Number,
-    pecho_final: Number,
-    brazo_inicial: Number,
-    brazo_final: Number
-  },
-  
-  fuerza: {
-    press_banca_kg: Number,
-    sentadilla_kg: Number,
-    peso_muerto_kg: Number
-  },
-  
-  notas: String,
-  pdf_generado: String,
-  
-  createdAt: { type: Date, default: Date.now }
-}, { collection: 'reportes_v64' });
-
-// Cliente (usuarios creados por coaches)
-const clienteSchema = new mongoose.Schema({
-  usuario: { type: String, required: true, unique: true },
-  contraseña: { type: String, required: true },
-  nombreCompleto: String,
-  telefono: String,
-  edad: Number,
-  objetivo: String,
-  tipoPerfil: { type: String, enum: ['general', 'fisiculturista'], default: 'general' },
-  estado: { type: String, default: 'Activo' },
-  coach: { type: String, required: true },
-  archivos: Array,
-  localId: Number,
-  mongoId: String,
-  creadoEn: { type: Date, default: Date.now }
-}, { collection: 'clientes_v64' });
-
-// Modelos
-const Usuario = mongoose.model('Usuario', usuarioSchema);
-const Ejercicio = mongoose.model('Ejercicio', ejercicioSchema);
-const Rutina = mongoose.model('Rutina', rutinaSchema);
-const Sesion = mongoose.model('Sesion', sesionSchema);
-const Alimento = mongoose.model('Alimento', alimentoSchema);
-const Reporte = mongoose.model('Reporte', reporteSchema);
-const Cliente = mongoose.model('Cliente', clienteSchema);
-
-
-// ========== MIDDLEWARE DE AUTENTICACIÓN ==========
-
-const autenticar = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ error: 'Token requerido' });
-  }
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.usuarioId = decoded.id;
-    req.rol = decoded.rol;
-    next();
-  } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
-  }
-};
-
-const esCoach = (req, res, next) => {
-  if (req.rol !== 'coach') {
-    return res.status(403).json({ error: 'Solo coaches pueden hacer esto' });
-  }
+// Cabeceras de seguridad básicas
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Referrer-Policy', 'same-origin');
+  res.set('X-Frame-Options', 'SAMEORIGIN');
   next();
-};
+});
 
-// ========== AUTENTICACIÓN TRADICIONAL ==========
+// ===============================================
+// SERVIR ARCHIVOS ESTÁTICOS (IMPORTANTE!)
+// ===============================================
 
-app.post('/api/auth/registro', async (req, res) => {
+app.use((req, res, next) => {
+  if (/^\/(backend|node_modules)(\/|$)/i.test(req.path)) return res.status(404).end();
+  next();
+});
+// La página principal se envía comprimida (1,4 MB -> ~0,4 MB): carga mucho
+// más rápido en celulares. Se recomprime sola si el archivo cambia.
+const INDEX_FILE = path.join(__dirname, '..', 'index.html');
+let indexCache = { mtime: 0, raw: null, gz: null, etag: '' };
+function cargarIndex() {
+  const st = fs.statSync(INDEX_FILE);
+  if (st.mtimeMs !== indexCache.mtime) {
+    const raw = fs.readFileSync(INDEX_FILE);
+    indexCache = { mtime: st.mtimeMs, raw, gz: zlib.gzipSync(raw, { level: 9 }), etag: '"' + crypto.createHash('sha1').update(raw).digest('hex').slice(0, 20) + '"' };
+  }
+  return indexCache;
+}
+function enviarIndex(req, res) {
   try {
-    const { usuario, contrasena, nombre, rol } = req.body;
-    
-    if (!usuario || !contrasena) {
-      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    const c = cargarIndex();
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.set('Cache-Control', 'no-cache'); // siempre revisa si hay versión nueva
+    res.set('ETag', c.etag);
+    res.set('Vary', 'Accept-Encoding');
+    if (req.headers['if-none-match'] === c.etag) return res.status(304).end();
+    if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+      res.set('Content-Encoding', 'gzip');
+      return res.send(c.gz);
     }
-    
-    const existe = await Usuario.findOne({ usuario });
-    if (existe) {
-      return res.status(400).json({ error: 'Usuario ya existe' });
-    }
-    
-    const hash = await bcryptjs.hash(contrasena, 10);
-    
-    const nuevoUsuario = new Usuario({
-      usuario,
-      contrasena: hash,
-      nombre: nombre || usuario,
-      rol: rol || 'usuario'
+    res.send(c.raw);
+  } catch (e) {
+    res.status(500).send('No se pudo cargar la app.');
+  }
+}
+app.get(['/', '/index.html'], enviarIndex);
+app.use(express.static(path.join(__dirname, '..'), { index: false }));
+
+// ===============================================
+// CONECTAR MONGODB
+// ===============================================
+
+mongoose.connect(process.env.MONGODB_URI)
+  .then(async () => {
+    console.log('✅ MongoDB conectado');
+    console.log(`📊 Database: yayo_v65`);
+    try { await prepararSeguridad(); } catch (e) { console.error('❌ Preparando seguridad:', e.message); }
+  })
+  .catch(err => {
+    console.error('❌ Error MongoDB:', err.message);
+    process.exit(1);
+  });
+
+// ===============================================
+// ESQUEMAS MONGODB
+// ===============================================
+
+const coachSchema = new mongoose.Schema({
+  nombre: String,
+  username: String,
+  password: String,
+  telefono: String,
+  especialidad: String,
+  ver: { type: Number, default: 1 },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const clienteSchema = new mongoose.Schema({
+  nombre: String,
+  username: String,
+  password: String,
+  edad: Number,
+  coach_id: mongoose.Schema.Types.ObjectId,
+  objetivo: String,
+  status: { type: String, default: 'activo' },
+  app_id: String,
+  telefono: String,
+  coach: String,
+  fisiculturista: Boolean,
+  origen: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const dietaSchema = new mongoose.Schema({
+  coach_id: mongoose.Schema.Types.ObjectId,
+  cliente_id: mongoose.Schema.Types.ObjectId,
+  nombre: String,
+  kcal_objetivo: Number,
+  macros: {
+    proteina: Number,
+    carbohidratos: Number,
+    grasas: Number
+  },
+  comidas: Array,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Coach = mongoose.model('Coach', coachSchema);
+const Cliente = mongoose.model('Cliente', clienteSchema);
+const Dieta = mongoose.model('Dieta', dietaSchema);
+
+// QA 10-oct · recuperación autónoma: contacto verificado por la coach y tokens de un solo uso (colecciones separadas: el guardado de clientes no las pisa)
+const contactoSchema = new mongoose.Schema({
+  uid: { type: String, unique: true },
+  correo: { type: String, index: true },
+  verificado: { type: Boolean, default: false },
+  verificadoPor: String,
+  verificadoEn: Date,
+  actualizadoEn: { type: Date, default: Date.now }
+}, { collection: 'contactos' });
+const recuperacionSchema = new mongoose.Schema({
+  uid: { type: String, index: true },
+  hash: { type: String, unique: true },
+  expira: Date,
+  usado: { type: Boolean, default: false },
+  creado: { type: Date, default: Date.now },
+  usadoEn: Date
+}, { collection: 'recuperaciones' });
+const Contacto = mongoose.model('Contacto', contactoSchema);
+const Recuperacion = mongoose.model('Recuperacion', recuperacionSchema);
+
+// ===============================================
+// RUTAS API
+// ===============================================
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Servidor funcionando' });
+});
+
+app.post('/api/clientes', soloCoach, async (req, res) => {
+  try {
+    const { nombre, username, password, edad, objetivo, coach_id } = req.body;
+    const cliente = new Cliente({
+      nombre, username, edad, objetivo, coach_id, status: 'activo'
     });
-    
-    await nuevoUsuario.save();
-    
-    res.json({ 
-      success: true,
-      id: nuevoUsuario._id,
-      usuario: nuevoUsuario.usuario 
-    });
+    await cliente.save();
+    res.json({ success: true, cliente });
   } catch (error) {
-    console.error('Error registro:', error);
     res.status(500).json({ error: error.message });
   }
 });
+
+app.get('/api/coach/mis-clientes', soloCoach, async (req, res) => {
+  try {
+    const coach_id = req.query.coach_id;
+    const clientes = await Cliente.find({ coach_id });
+    res.json({ clientes });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/clientes/:id', soloCoach, async (req, res) => {
+  try {
+    const cliente = await Cliente.findById(req.params.id);
+    if (!cliente) return res.status(404).json({ error: 'No encontrado' });
+    res.json(cliente);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/clientes/:id', soloCoach, async (req, res) => {
+  try {
+    const datos = Object.assign({}, req.body); delete datos.password;
+    const cliente = await Cliente.findByIdAndUpdate(req.params.id, datos, { new: true });
+    res.json({ success: true, cliente });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/clientes/:id', soloCoach, async (req, res) => {
+  try {
+    await Cliente.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/dietas', soloCoach, async (req, res) => {
+  try {
+    const { coach_id, cliente_id, nombre, kcal_objetivo, macros, comidas } = req.body;
+    const dieta = new Dieta({
+      coach_id, cliente_id, nombre, kcal_objetivo, macros, comidas
+    });
+    await dieta.save();
+    res.json({ success: true, dieta });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/dietas/:id', soloCoach, async (req, res) => {
+  try {
+    const dieta = await Dieta.findById(req.params.id);
+    if (!dieta) return res.status(404).json({ error: 'No encontrado' });
+    res.json(dieta);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/clientes/:id/dietas', soloCoach, async (req, res) => {
+  try {
+    const dietas = await Dieta.find({ cliente_id: req.params.id });
+    res.json({ dietas });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/alimentos', (req, res) => {
+  const alimentos = [
+    { name: "Pollo pechuga cocida", group: "Proteína", kcal: 165, p: 31, c: 0, f: 3.6 }
+  ];
+  res.json({ alimentos });
+});
+
+// ===============================================
+// PUENTE APP <-> MONGODB (datos de la app)
+// -----------------------------------------------
+// La app guarda su información en bloques: users, routines, diets,
+// checkins, etc. Cada bloque es un documento en la colección
+// "app_state". Cada documento lleva un número de versión para que dos
+// dispositivos que guardan al mismo tiempo no se pisen: si alguien
+// guardó antes, el servidor responde 409 con lo último y la app
+// combina los cambios antes de volver a guardar.
+// ===============================================
+
+const appStateSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  json: String,
+  version: Number,
+  updatedAt: Date
+}, { collection: 'app_state' });
+const AppState = mongoose.model('AppState', appStateSchema);
+
+const archivoSchema = new mongoose.Schema({
+  nombre: String,
+  tipo: String,
+  tamano: Number,
+  datos: Buffer,
+  clave: { type: String, index: true },
+  subidoPor: String,
+  createdAt: { type: Date, default: Date.now }
+}, { collection: 'archivos' });
+const Archivo = mongoose.model('Archivo', archivoSchema);
+
+const KEY_OK = /^[A-Za-z0-9_-]{1,40}$/;
+
+function formatoEstado(d) {
+  let value = null;
+  try { value = JSON.parse(d.json || 'null'); } catch (e) { value = null; }
+  return { value, version: d.version || 0, updatedAt: d.updatedAt };
+}
+
+// Copia legible de los usuarios de la app en la colección "clientes"
+// (sin contraseñas), para poder verlos en MongoDB Atlas.
+async function reflejarClientes(users) {
+  if (!Array.isArray(users)) return;
+  const lista = users.filter(u => u && u.id != null && u.name &&
+    !['yayo', 'laura'].includes(String(u.name).toLowerCase()));
+  const ops = lista.map(u => ({
+    updateOne: {
+      filter: { app_id: String(u.id) },
+      update: { $set: {
+        app_id: String(u.id),
+        origen: 'app',
+        username: u.name,
+        nombre: u.fullName || u.name,
+        edad: Number(u.age) || null,
+        objetivo: u.goal || '',
+        status: String(u.status || 'Activo').toLowerCase(),
+        telefono: u.phone || '',
+        coach: u.coachId || '',
+        fisiculturista: !!u.bodybuilder
+      } },
+      upsert: true
+    }
+  }));
+  if (ops.length) await Cliente.bulkWrite(ops);
+  await Cliente.deleteMany({ origen: 'app', app_id: { $nin: lista.map(u => String(u.id)) } });
+}
+
+// ===============================================
+// SEGURIDAD: LOGIN, SESIONES Y PERMISOS
+// -----------------------------------------------
+// - Las contraseñas se guardan CIFRADAS (bcrypt) en la colección
+//   "credenciales" (clientes) y "coaches" (Yayo y Laura). Nunca viajan
+//   a los celulares ni quedan legibles en la base de datos.
+// - Al entrar, el servidor entrega una cookie de sesión firmada
+//   (HttpOnly: el código de la página no la puede leer). Dura 30 días.
+// - Cada cliente recibe SOLO su propia información y solo puede
+//   modificar lo suyo. Los coaches ven y modifican todo.
+// - Si el coach cambia la contraseña de un cliente, o lo pone en pausa,
+//   las sesiones abiertas de ese cliente dejan de funcionar.
+// ===============================================
+
+const credencialSchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true },
+  nombre: String,
+  hash: String,
+  ver: { type: Number, default: 1 },
+  updatedAt: Date
+}, { collection: 'credenciales' });
+const Credencial = mongoose.model('Credencial', credencialSchema);
+
+// Memoria rápida (un solo servidor): usuarios de la app, credenciales y coaches
+const cache = { users: [], usersVersion: -1, creds: new Map(), coaches: new Map(), listo: false };
+
+const esHash = v => typeof v === 'string' && /^\$2[aby]\$\d{2}\$/.test(v);
+const userId = u => String(u && u.id);
+
+async function cargarUsuarios() {
+  const d = await AppState.findOne({ key: 'users' }).lean();
+  let list = [];
+  try { list = d ? JSON.parse(d.json || '[]') : []; } catch (e) { list = []; }
+  cache.users = Array.isArray(list) ? list : [];
+  cache.usersVersion = d ? (d.version || 0) : 0;
+}
+
+// Se ejecuta una vez al arrancar: cifra lo que estaba en texto plano.
+async function prepararSeguridad() {
+  // 1) Coaches: asegurar que existan y que su contraseña esté cifrada
+  for (const c of COACHES) {
+    let doc = await Coach.findOne({ username: new RegExp('^' + c + '$', 'i') });
+    if (!doc) {
+      doc = await Coach.create({ nombre: c === 'yayo' ? 'Yayo Daza' : 'Laura Henao', username: c, password: await bcrypt.hash('1234', 10), ver: 1 });
+      console.log('🔐 Coach ' + c + ' creado con contraseña inicial 1234 (cámbiala desde la app).');
+    } else if (!esHash(doc.password)) {
+      doc.password = await bcrypt.hash(String(doc.password || '1234'), 10);
+      doc.ver = (doc.ver || 1) + 1;
+      await doc.save();
+      console.log('🔐 Contraseña del coach ' + c + ' cifrada.');
+    }
+    cache.coaches.set(c, { id: String(doc._id), nombre: doc.nombre, hash: doc.password, ver: doc.ver || 1 });
+  }
+  // 2) Credenciales de clientes ya guardadas
+  (await Credencial.find({}).lean()).forEach(c => cache.creds.set(c.uid, { hash: c.hash, ver: c.ver || 1 }));
+  // 3) Contraseñas en texto plano dentro de los usuarios de la app -> cifrar y quitar
+  await cargarUsuarios();
+  let cambio = false;
+  for (const u of cache.users) {
+    if (u && typeof u.password === 'string' && u.password) {
+      if (!cache.creds.has(userId(u))) await guardarCredencial(u, u.password, false);
+      delete u.password; cambio = true;
+    } else if (u && typeof u === 'object' && 'password' in u) { delete u.password; cambio = true; }
+  }
+  if (cambio) {
+    await AppState.updateOne({ key: 'users' }, { $set: { json: JSON.stringify(cache.users), updatedAt: new Date() }, $inc: { version: 1 } });
+    await cargarUsuarios();
+    console.log('🔐 Contraseñas de clientes cifradas y retiradas de los datos de la app.');
+  }
+  // 4) La lista de contraseñas emitidas (issuedKeys) no se guarda más
+  const ik = await AppState.findOne({ key: 'issuedKeys' }).lean();
+  if (ik && ik.json !== '[]') {
+    await AppState.updateOne({ key: 'issuedKeys' }, { $set: { json: '[]', updatedAt: new Date() }, $inc: { version: 1 } });
+    console.log('🔐 Lista de contraseñas emitidas borrada.');
+  }
+  // 5) Por si quedó alguna contraseña en la colección "clientes"
+  await Cliente.updateMany({ password: { $exists: true } }, { $unset: { password: 1 } });
+  // 6) Los datos heredados del navegador (versiones viejas) ya no se importan:
+  //    el servidor es la única fuente. Así un cliente borrado no puede volver desde un navegador viejo.
+  const mig = await AppState.findOne({ key: 'migraciones' }).lean();
+  if (!mig) {
+    await AppState.create({ key: 'migraciones', json: JSON.stringify({ legacyUsers: 'hecho' }), version: 1, updatedAt: new Date() });
+  } else {
+    let m = {}; try { m = JSON.parse(mig.json || '{}') || {}; } catch (e) {}
+    if (m.legacyUsers !== 'hecho') {
+      await AppState.updateOne({ key: 'migraciones' }, { $set: { json: JSON.stringify(Object.assign(m, { legacyUsers: 'hecho' })), updatedAt: new Date() }, $inc: { version: 1 } });
+    }
+  }
+  cache.listo = true;
+  console.log('✅ Seguridad lista: ' + cache.creds.size + ' credenciales de clientes.');
+}
+
+// Al borrar clientes de la app se borra también lo que quedó de ellos en MongoDB:
+// credenciales de acceso y archivos (fotos, chequeos) que subieron.
+async function purgarClientes(ids) {
+  const uids = ids.map(String);
+  uids.forEach(uid => cache.creds.delete(uid));
+  await Credencial.deleteMany({ uid: { $in: uids } });
+  await Archivo.deleteMany({ subidoPor: { $in: uids } });
+}
+function idsQuitados(anterior, nuevo) {
+  const viejos = Array.isArray(anterior) ? anterior : [];
+  const quedan = new Set((Array.isArray(nuevo) ? nuevo : []).map(u => userId(u)));
+  return viejos.filter(u => u && u.id != null && !COACHES.includes(norm(u.name)) && !quedan.has(userId(u))).map(u => userId(u));
+}
+
+async function guardarCredencial(u, plano, subirVersion = true) {
+  const uid = userId(u);
+  const prev = cache.creds.get(uid);
+  const hash = await bcrypt.hash(String(plano), 10);
+  const ver = prev ? (subirVersion ? prev.ver + 1 : prev.ver) : 1;
+  await Credencial.updateOne({ uid }, { $set: { uid, nombre: u.name || '', hash, ver, updatedAt: new Date() } }, { upsert: true });
+  cache.creds.set(uid, { hash, ver });
+  return ver;
+}
+
+function buscarUsuario(nombre) {
+  const n = norm(nombre);
+  return cache.users.find(u => u && norm(u.name) === n && !COACHES.includes(norm(u.name)));
+}
+const pausado = u => norm(u && u.status) === 'pausado';
+
+// ---------- cookie de sesión ----------
+function firmar(res, req, datos) {
+  const token = jwt.sign(datos, JWT_SECRET, { expiresIn: SESSION_DAYS + 'd' });
+  res.cookie(COOKIE, token, {
+    httpOnly: true, sameSite: 'lax', path: '/',
+    secure: req.secure || req.get('x-forwarded-proto') === 'https',
+    maxAge: SESSION_DAYS * 24 * 3600 * 1000
+  });
+}
+function leerCookie(req) {
+  const h = req.headers.cookie || '';
+  const m = h.split(/;\s*/).find(x => x.startsWith(COOKIE + '='));
+  return m ? decodeURIComponent(m.slice(COOKIE.length + 1)) : null;
+}
+// Quién es: coach (yayo/laura) o cliente. null si la sesión no es válida.
+function sesion(req) {
+  const t = leerCookie(req);
+  if (!t) return null;
+  let d;
+  try { d = jwt.verify(t, JWT_SECRET); } catch (e) { return null; }
+  if (d.r === 'coach') {
+    const c = cache.coaches.get(d.c);
+    if (!c || c.ver !== d.pv) return null;
+    return { rol: 'coach', coach: d.c, nombre: d.c === 'laura' ? 'Laura' : 'Yayo' };
+  }
+  if (d.r === 'user') {
+    const u = cache.users.find(x => userId(x) === String(d.uid));
+    const cr = cache.creds.get(String(d.uid));
+    if (!u || pausado(u)) return null;
+    if ((cr ? cr.ver : 0) !== (d.pv || 0)) return null;
+    return { rol: 'user', uid: String(d.uid), nombre: u.name, user: u };
+  }
+  return null;
+}
+function conSesion(req, res, next) {
+  if (!cache.listo) return res.status(503).json({ error: 'El servidor está iniciando. Intenta en unos segundos.' });
+  const s = sesion(req);
+  if (!s) return res.status(401).json({ error: 'Sesión no válida. Vuelve a iniciar sesión.' });
+  req.quien = s; next();
+}
+function soloCoach(req, res, next) {
+  conSesion(req, res, () => {
+    if (req.quien.rol !== 'coach') return res.status(403).json({ error: 'Solo para coaches.' });
+    next();
+  });
+}
+
+// ---------- límite de intentos de login ----------
+const intentos = new Map(); // ip|usuario -> { n, hasta }
+function bloqueado(clave) {
+  const r = intentos.get(clave);
+  return !!(r && r.hasta && r.hasta > Date.now());
+}
+function fallo(clave) {
+  const r = intentos.get(clave) || { n: 0, hasta: 0 };
+  r.n += 1;
+  if (r.n >= 8) { r.hasta = Date.now() + 15 * 60 * 1000; r.n = 0; }
+  intentos.set(clave, r);
+}
+setInterval(() => { const now = Date.now(); for (const [k, r] of intentos) if (!r.hasta || r.hasta < now) intentos.delete(k); }, 30 * 60 * 1000).unref();
+
+const sinClave = u => { if (!u || typeof u !== 'object') return u; const c = Object.assign({}, u); delete c.password; return c; };
+function respuestaSesion(s) {
+  return s.rol === 'coach'
+    ? { success: true, rol: 'coach', coach: s.coach, nombre: s.nombre }
+    : { success: true, rol: 'user', uid: s.uid, nombre: s.nombre, user: sinClave(s.user) };
+}
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { usuario, contrasena } = req.body;
-    
-    if (!usuario || !contrasena) {
-      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    if (!cache.listo) return res.status(503).json({ error: 'El servidor está iniciando. Intenta en unos segundos.' });
+    const username = String((req.body && req.body.username) || '').trim();
+    const password = String((req.body && req.body.password) || '');
+    if (!username || !password) return res.status(400).json({ error: 'Escribe usuario y contraseña.' });
+    const clave = (req.ip || '') + '|' + norm(username);
+    if (bloqueado(clave)) return res.status(429).json({ error: 'Demasiados intentos. Espera 15 minutos e intenta de nuevo.' });
+
+    const n = norm(username);
+    if (COACHES.includes(n)) {
+      const c = cache.coaches.get(n);
+      if (!c || !(await bcrypt.compare(password, c.hash))) { fallo(clave); return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' }); }
+      intentos.delete(clave);
+      firmar(res, req, { r: 'coach', c: n, pv: c.ver });
+      return res.json(respuestaSesion({ rol: 'coach', coach: n, nombre: n === 'laura' ? 'Laura' : 'Yayo' }));
     }
-    
-    const user = await Usuario.findOne({ usuario });
-    if (!user) {
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-    }
-    
-    const valida = await bcryptjs.compare(contrasena, user.contrasena);
-    if (!valida) {
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-    }
-    
-    user.ultimoAcceso = new Date();
-    await user.save();
-    
-    const token = jwt.sign(
-      { id: user._id, rol: user.rol },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-    
-    res.json({
-      success: true,
-      token,
-      usuario: {
-        id: user._id,
-        usuario: user.usuario,
-        nombre: user.nombre,
-        rol: user.rol,
-        avatar: user.avatar
-      }
-    });
+    const u = buscarUsuario(username);
+    const cr = u && cache.creds.get(userId(u));
+    // Sin credencial guardada, la app siempre usó "1234" como contraseña inicial
+    const ok = !!u && (cr ? await bcrypt.compare(password, cr.hash) : password === '1234');
+    if (!ok) { fallo(clave); return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' }); }
+    if (pausado(u)) return res.status(403).json({ error: 'Tu cuenta está en pausa. Escríbele a tu coach para reactivarla.' });
+    intentos.delete(clave);
+    firmar(res, req, { r: 'user', uid: userId(u), pv: cr ? cr.ver : 0 });
+    res.json(respuestaSesion({ rol: 'user', uid: userId(u), nombre: u.name, user: u }));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ========== OAUTH - GOOGLE ==========
+app.get('/api/auth/me', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!cache.listo) return res.status(503).json({ error: 'El servidor está iniciando.' });
+  const s = sesion(req);
+  if (!s) return res.status(401).json({ error: 'Sin sesión.' });
+  res.json(respuestaSesion(s));
+});
 
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie(COOKIE, { path: '/' });
+  res.json({ success: true });
+});
+
+// El coach asigna/cambia la contraseña de un cliente, o el cliente cambia la suya
+app.post('/api/auth/password', conSesion, async (req, res) => {
   try {
-    const { googleId, email, nombre, avatar } = req.body;
-    
-    if (!googleId || !email) {
-      return res.status(400).json({ error: 'googleId y email requeridos' });
+    const uid = String((req.body && req.body.uid) || '');
+    const password = (req.body && req.body.password) || '';
+    if (typeof password !== 'string' || password.length < 4 || password.length > 100) return res.status(400).json({ error: 'Contraseña inválida.' });
+    const q = req.quien;
+    if (q.rol === 'user' && q.uid !== uid) return res.status(403).json({ error: 'Solo puedes cambiar tu propia contraseña.' });
+    let u = cache.users.find(x => userId(x) === uid);
+    // Un cliente recién creado por el coach puede no estar guardado aún: se acepta su nombre
+    if (!u && q.rol === 'coach' && uid) u = { id: uid, name: String((req.body && req.body.name) || '') };
+    if (!u) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    const ver = await guardarCredencial(u, password, true);
+    if (q.rol === 'user') firmar(res, req, { r: 'user', uid, pv: ver }); // su sesión actual sigue válida
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Yayo o Laura cambian su propia contraseña
+app.post('/api/auth/coach-password', soloCoach, async (req, res) => {
+  try {
+    const actual = String((req.body && req.body.actual) || '');
+    const nueva = (req.body && req.body.nueva) || '';
+    const k = req.quien.coach;
+    const c = cache.coaches.get(k);
+    if (!(await bcrypt.compare(actual, c.hash))) return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
+    if (typeof nueva !== 'string' || nueva.length < 6 || nueva.length > 100 || !/[a-zA-Z]/.test(nueva) || !/[0-9]/.test(nueva)) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres, una letra y un número.' });
     }
-    
-    // Buscar o crear usuario
-    let user = await Usuario.findOne({ googleId });
-    
-    if (!user) {
-      user = await Usuario.findOne({ email });
-      
-      if (!user) {
-        user = new Usuario({
-          googleId,
-          email,
-          nombre,
-          avatar,
-          usuario: email.split('@')[0],
-          rol: 'usuario'
-        });
+    const hash = await bcrypt.hash(nueva, 10);
+    const ver = c.ver + 1;
+    await Coach.updateOne({ username: new RegExp('^' + k + '$', 'i') }, { $set: { password: hash, ver } });
+    cache.coaches.set(k, Object.assign({}, c, { hash, ver }));
+    firmar(res, req, { r: 'coach', c: k, pv: ver }); // esta sesión sigue; las demás se cierran
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ---------- qué ve y qué puede tocar cada cliente ----------
+// Bloques en forma de lista: un elemento es del cliente si lleva su id o su nombre.
+const BLOQUES_LISTA = ['routines', 'diets', 'sessions', 'checkins', 'calendarEvents', 'progressReviews'];
+// Bloques en forma de objeto organizados por cliente (llave = id o nombre del cliente)
+const OBJ_POR_CLIENTE = ['userAssignments', 'assignmentHistory', 'progressLogs'];
+// Bloques generales que el cliente puede ver pero no cambiar
+const SOLO_LECTURA = ['brands', 'foodNutrition'];
+// Bloques que el cliente sí puede modificar (solo en lo suyo)
+const CLIENTE_ESCRIBE = ['users', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'progressLogs'];
+// Datos de su propia ficha que el cliente NO puede cambiar
+const CAMPOS_PROTEGIDOS = ['id', 'name', 'status', 'coachId', 'bodybuilder', 'createdAt', 'protocolPdf', 'protocolFiles', 'password'];
+
+function esDelCliente(x, s) {
+  if (!x || typeof x !== 'object') return false;
+  const id = s.uid, n = norm(s.nombre);
+  if (x.userId != null && String(x.userId) === id) return true;
+  if (x.uid != null && String(x.uid) === id) return true;
+  if (x.user != null && norm(x.user) === n) return true;
+  if (x.userName != null && norm(x.userName) === n) return true;
+  return false;
+}
+const sinDueno = x => x && typeof x === 'object' && x.userId == null && x.uid == null && !norm(x.user) && !norm(x.userName);
+function llaveDelCliente(k, s) {
+  const kk = norm(k), n = norm(s.nombre);
+  return kk === s.uid || kk === n || kk.startsWith(s.uid + '|') || kk.startsWith(n + '|') || kk.endsWith('_' + n) || kk.endsWith('_' + s.uid);
+}
+
+// Lo que un cliente puede ver de un bloque
+function vistaCliente(key, value, s) {
+  if (key === 'users') {
+    return (Array.isArray(value) ? value : [])
+      .filter(u => u && (userId(u) === s.uid || COACHES.includes(norm(u.name))))
+      .map(sinClave);
+  }
+  if (key === 'issuedKeys' || key === 'accessRequests') return [];
+  if (SOLO_LECTURA.includes(key)) return value;
+  if (BLOQUES_LISTA.includes(key)) {
+    if (!Array.isArray(value)) return [];
+    // los eventos de calendario sin dueño son generales (para todos)
+    return value.filter(x => esDelCliente(x, s) || (key === 'calendarEvents' && sinDueno(x)));
+  }
+  if (OBJ_POR_CLIENTE.includes(key)) {
+    const out = {};
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.keys(value).forEach(k => { if (llaveDelCliente(k, s)) out[k] = value[k]; });
+    }
+    return out;
+  }
+  return Array.isArray(value) ? [] : (value && typeof value === 'object' ? {} : null);
+}
+
+// Combina lo que envía un cliente con el bloque completo: solo cambia lo suyo.
+function combinarCliente(key, completo, enviado, s) {
+  if (key === 'users') {
+    const lista = Array.isArray(completo) ? completo.slice() : [];
+    const mio = (Array.isArray(enviado) ? enviado : []).find(u => u && userId(u) === s.uid);
+    const i = lista.findIndex(u => u && userId(u) === s.uid);
+    if (!mio || i < 0) return lista;
+    const nuevo = Object.assign({}, lista[i]);
+    Object.keys(mio).forEach(k => { if (!CAMPOS_PROTEGIDOS.includes(k)) nuevo[k] = mio[k]; });
+    Object.keys(nuevo).forEach(k => { if (!(k in mio) && !CAMPOS_PROTEGIDOS.includes(k)) delete nuevo[k]; });
+    lista[i] = nuevo;
+    return lista;
+  }
+  if (BLOQUES_LISTA.includes(key)) {
+    const base = Array.isArray(completo) ? completo : [];
+    const propios = (Array.isArray(enviado) ? enviado : []).filter(x => esDelCliente(x, s));
+    return base.filter(x => !esDelCliente(x, s)).concat(propios);
+  }
+  if (OBJ_POR_CLIENTE.includes(key)) {
+    const out = {};
+    const base = completo && typeof completo === 'object' && !Array.isArray(completo) ? completo : {};
+    Object.keys(base).forEach(k => { if (!llaveDelCliente(k, s)) out[k] = base[k]; });
+    const env = enviado && typeof enviado === 'object' && !Array.isArray(enviado) ? enviado : {};
+    Object.keys(env).forEach(k => { if (llaveDelCliente(k, s)) out[k] = env[k]; });
+    return out;
+  }
+  return completo;
+}
+
+// ---------- biblioteca de plantillas (dietas y rutinas) ----------
+// Compartida: la ven y editan las dos coaches. Privada: solo la ve y cambia quien la creó.
+const BIBLIOTECAS = ['libraryDiets', 'libraryRoutines'];
+const minus = v => String(v == null ? '' : v).trim().toLowerCase();
+function esDeCoach(dueno, quien) {
+  const d = minus(dueno);
+  return !!d && (d === minus(quien.nombre) || d === minus(quien.coach));
+}
+// Privada de otra coach: no se muestra y no se puede tocar desde esta sesión
+function esPrivadaAjena(x, quien) {
+  if (!x || typeof x !== 'object' || x.scope !== 'private') return false;
+  if (!minus(x.owner)) return false; // sin dueño conocido: visible para las dos
+  return !esDeCoach(x.owner, quien);
+}
+// Lo que ve una coach de una biblioteca
+function vistaCoachBiblioteca(key, value, quien) {
+  if (!BIBLIOTECAS.includes(key) || !Array.isArray(value)) return value;
+  return value.filter(x => !esPrivadaAjena(x, quien));
+}
+// Combina lo que envía una coach con lo guardado: conserva las privadas de la otra coach
+function combinarBiblioteca(completo, enviado, quien) {
+  const base = Array.isArray(completo) ? completo : [];
+  const ajenas = base.filter(x => esPrivadaAjena(x, quien));
+  const ids = new Set(ajenas.map(x => String(x && x.id)));
+  const previos = new Map(base.map(x => [String(x && x.id), x]));
+  const propios = (Array.isArray(enviado) ? enviado : [])
+    .filter(x => x && typeof x === 'object' && !ids.has(String(x.id)))
+    .map(x => {
+      const previo = previos.get(String(x.id));
+      // el dueño no cambia: una plantilla nueva es de quien la crea
+      const owner = previo ? (previo.owner || quien.nombre) : quien.nombre;
+      let scope = x.scope === 'private' ? 'private' : 'shared';
+      // solo el dueño puede hacer privada una plantilla
+      if (!esDeCoach(owner, quien) && previo) scope = previo.scope || 'shared';
+      return Object.assign({}, x, { owner, scope });
+    });
+  return propios.concat(ajenas);
+}
+
+// Nunca se guardan contraseñas dentro de los usuarios de la app
+function limpiarUsuarios(value) {
+  if (!Array.isArray(value)) return value;
+  // Las cuentas de Yayo y Laura no son clientes: nunca viajan en la lista de usuarios
+  return value.filter(u => u && !COACHES.includes(norm(u.name))).map(sinClave);
+}
+
+// Todos los bloques de una vez (carga inicial de la app)
+// El coach recibe todo; un cliente recibe solo lo suyo.
+app.get('/api/state', conSesion, async (req, res) => {
+  try {
+    const docs = await AppState.find({}).lean();
+    const out = {};
+    docs.forEach(d => {
+      const f = formatoEstado(d);
+      if (d.key === 'issuedKeys') f.value = [];
+      if (d.key === 'users') f.value = limpiarUsuarios(f.value);
+      if (req.quien.rol === 'user') f.value = vistaCliente(d.key, f.value, req.quien);
+      else f.value = vistaCoachBiblioteca(d.key, f.value, req.quien);
+      out[d.key] = f;
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json({ docs: out });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Solo las versiones (la app pregunta esto cada pocos segundos)
+app.get('/api/state/versions', conSesion, async (req, res) => {
+  try {
+    const docs = await AppState.find({}, { key: 1, version: 1 }).lean();
+    const out = {};
+    docs.forEach(d => { out[d.key] = d.version || 0; });
+    res.set('Cache-Control', 'no-store');
+    res.json({ versions: out });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function vistaDe(req, key, d) {
+  const f = formatoEstado(d);
+  if (key === 'issuedKeys') f.value = [];
+  if (key === 'users') f.value = limpiarUsuarios(f.value);
+  if (req.quien.rol === 'user') f.value = vistaCliente(key, f.value, req.quien);
+  else f.value = vistaCoachBiblioteca(key, f.value, req.quien);
+  return f;
+}
+
+app.get('/api/state/:key', conSesion, async (req, res) => {
+  try {
+    const key = req.params.key;
+    if (!KEY_OK.test(key)) return res.status(400).json({ error: 'Bloque inválido' });
+    const d = await AppState.findOne({ key }).lean();
+    res.set('Cache-Control', 'no-store');
+    if (!d) return res.json({ exists: false });
+    res.json(Object.assign({ exists: true }, vistaDe(req, key, d)));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/state/:key', conSesion, async (req, res) => {
+  try {
+    const key = req.params.key;
+    if (!KEY_OK.test(key)) return res.status(400).json({ error: 'Bloque inválido' });
+    const q = req.quien;
+    const body = req.body || {};
+    let value = body.value === undefined ? null : body.value;
+    const baseVersion = body.baseVersion;
+    const actual = await AppState.findOne({ key }).lean();
+    const versionActual = actual ? (actual.version || 0) : 0;
+
+    // La lista de contraseñas emitidas ya no se guarda (solo vive en el celular del coach)
+    if (key === 'issuedKeys') return res.json({ success: true, version: versionActual, updatedAt: actual && actual.updatedAt });
+
+    if (q.rol === 'user') {
+      // Bloques que el cliente no puede cambiar: se ignora (sin error)
+      if (!CLIENTE_ESCRIBE.includes(key)) return res.json({ success: true, version: versionActual, updatedAt: actual && actual.updatedAt });
+      if (typeof baseVersion === 'number' && baseVersion !== versionActual) {
+        return res.status(409).json({ error: 'conflicto', doc: actual ? vistaDe(req, key, actual) : { value: null, version: 0 } });
+      }
+      const completo = actual ? formatoEstado(actual).value : (key === 'progressLogs' ? {} : []);
+      value = combinarCliente(key, completo, value, q);
+    } else if (BIBLIOTECAS.includes(key)) {
+      // la coach no puede borrar ni cambiar las privadas de la otra coach
+      const completo = actual ? formatoEstado(actual).value : [];
+      value = combinarBiblioteca(completo, value, q);
+    }
+
+    if (key === 'users') value = limpiarUsuarios(value);
+    const quitados = key === 'users' && actual ? idsQuitados(formatoEstado(actual).value, value) : [];
+    const json = JSON.stringify(value);
+    if (Buffer.byteLength(json) > 15 * 1024 * 1024) {
+      return res.status(413).json({ error: 'El bloque es demasiado grande' });
+    }
+    const now = new Date();
+    let doc = null;
+    if (q.rol === 'user') {
+      // el cliente siempre guarda sobre la versión que acabamos de leer
+      if (!actual) {
+        try { doc = (await AppState.create({ key, json, version: 1, updatedAt: now })).toObject(); }
+        catch (e) { if (e && e.code !== 11000) throw e; doc = null; }
       } else {
-        user.googleId = googleId;
-        user.avatar = avatar;
+        doc = await AppState.findOneAndUpdate(
+          { key, version: versionActual },
+          { $set: { json, updatedAt: now }, $inc: { version: 1 } },
+          { new: true }
+        ).lean();
       }
+    } else if (typeof baseVersion !== 'number') {
+      doc = await AppState.findOneAndUpdate(
+        { key },
+        { $set: { json, updatedAt: now }, $inc: { version: 1 } },
+        { new: true, upsert: true }
+      ).lean();
+    } else if (baseVersion === 0) {
+      try {
+        doc = (await AppState.create({ key, json, version: 1, updatedAt: now })).toObject();
+      } catch (e) {
+        if (e && e.code !== 11000) throw e;
+        doc = null;
+      }
+    } else {
+      doc = await AppState.findOneAndUpdate(
+        { key, version: baseVersion },
+        { $set: { json, updatedAt: now }, $inc: { version: 1 } },
+        { new: true }
+      ).lean();
     }
-    
-    user.ultimoAcceso = new Date();
-    await user.save();
-    
-    const token = jwt.sign(
-      { id: user._id, rol: user.rol },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-    
-    res.json({
-      success: true,
-      token,
-      usuario: {
-        id: user._id,
-        email: user.email,
-        nombre: user.nombre,
-        avatar: user.avatar,
-        rol: user.rol
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== OAUTH - FACEBOOK ==========
-
-app.post('/api/auth/facebook', async (req, res) => {
-  try {
-    const { facebookId, email, nombre, avatar } = req.body;
-    
-    if (!facebookId || !email) {
-      return res.status(400).json({ error: 'facebookId y email requeridos' });
-    }
-    
-    let user = await Usuario.findOne({ facebookId });
-    
-    if (!user) {
-      user = await Usuario.findOne({ email });
-      
-      if (!user) {
-        user = new Usuario({
-          facebookId,
-          email,
-          nombre,
-          avatar,
-          usuario: email.split('@')[0],
-          rol: 'usuario'
-        });
-      } else {
-        user.facebookId = facebookId;
-        user.avatar = avatar;
-      }
-    }
-    
-    user.ultimoAcceso = new Date();
-    await user.save();
-    
-    const token = jwt.sign(
-      { id: user._id, rol: user.rol },
-      JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-    
-    res.json({
-      success: true,
-      token,
-      usuario: {
-        id: user._id,
-        email: user.email,
-        nombre: user.nombre,
-        avatar: user.avatar,
-        rol: user.rol
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== EJERCICIOS CON MULTIMEDIA ==========
-
-app.post('/api/ejercicios', autenticar, esCoach, upload.fields([
-  { name: 'video', maxCount: 1 },
-  { name: 'imagen', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const { nombre, descripcion, grupo_muscular, dificultad, video_url, instrucciones, tips } = req.body;
-    
-    const ejercicio = new Ejercicio({
-      nombre,
-      descripcion,
-      grupo_muscular,
-      dificultad,
-      video_url,
-      video_local: req.files?.video?.[0]?.path,
-      imagen_local: req.files?.imagen?.[0]?.path,
-      instrucciones: instrucciones ? JSON.parse(instrucciones) : [],
-      tips: tips ? JSON.parse(tips) : []
-    });
-    
-    await ejercicio.save();
-    
-    // Invalidar cache
-    await redisClient.del('ejercicios:all');
-    
-    res.json({ success: true, ejercicio });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/ejercicios', autenticar, async (req, res) => {
-  try {
-    // Intentar obtener del cache
-    const cached = await redisClient.get('ejercicios:all');
-    if (cached) {
-      return res.json(JSON.parse(cached));
-    }
-    
-    const ejercicios = await Ejercicio.find().limit(200);
-    
-    // Guardar en cache (1 hora)
-    await redisClient.setEx('ejercicios:all', 3600, JSON.stringify(ejercicios));
-    
-    res.json(ejercicios);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/ejercicios/:id', autenticar, async (req, res) => {
-  try {
-    const ejercicio = await Ejercicio.findById(req.params.id);
-    if (!ejercicio) {
-      return res.status(404).json({ error: 'Ejercicio no encontrado' });
-    }
-    res.json(ejercicio);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== RUTINAS MEJORADAS ==========
-
-app.post('/api/rutinas', autenticar, esCoach, upload.single('imagen_portada'), async (req, res) => {
-  try {
-    const { nombre, objetivo, nivel, descripcion, ejercicios, duracion_semanas, frecuencia } = req.body;
-    
-    const rutina = new Rutina({
-      coachId: req.usuarioId,
-      nombre,
-      objetivo,
-      nivel,
-      descripcion,
-      ejercicios: ejercicios ? JSON.parse(ejercicios) : [],
-      duracion_semanas,
-      frecuencia,
-      imagen_portada: req.file?.path
-    });
-    
-    await rutina.save();
-    
-    // Invalidar cache
-    await redisClient.del(`rutinas:coach:${req.usuarioId}`);
-    
-    // Notificar a usuarios suscritos
-    io.emit('nueva_rutina', { rutina, coach: req.usuarioId });
-    
-    res.json({ success: true, rutina });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/rutinas', autenticar, async (req, res) => {
-  try {
-    const filter = req.rol === 'coach' 
-      ? { coachId: req.usuarioId }
-      : { usuarios_asignados: req.usuarioId };
-    
-    const rutinas = await Rutina.find(filter).populate('ejercicios');
-    res.json(rutinas);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== SESIONES MEJORADAS ==========
-
-app.post('/api/sesiones', autenticar, upload.fields([
-  { name: 'foto_antes', maxCount: 1 },
-  { name: 'foto_despues', maxCount: 1 }
-]), async (req, res) => {
-  try {
-    const { rutinaId, ejercicios, duracion_minutos, esfuerzo_general, sensaciones } = req.body;
-    
-    const sesion = new Sesion({
-      usuarioId: req.usuarioId,
-      rutinaId,
-      fecha: new Date(),
-      ejercicios: ejercicios ? JSON.parse(ejercicios) : [],
-      completada: true,
-      duracion_minutos,
-      esfuerzo_general,
-      sensaciones,
-      foto_antes: req.files?.foto_antes?.[0]?.path,
-      foto_despues: req.files?.foto_despues?.[0]?.path
-    });
-    
-    await sesion.save();
-    
-    // Actualizar métrica del usuario
-    const usuario = await Usuario.findById(req.usuarioId);
-    usuario.totalSesiones += 1;
-    usuario.ultimaSesion = new Date();
-    usuario.streakDias += 1;
-    await usuario.save();
-    
-    // Notificar al coach
-    io.emit('sesion_completada', {
-      sesion,
-      usuario: usuario.nombre,
-      rutina: rutinaId
-    });
-    
-    res.json({ success: true, sesion });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/sesiones', autenticar, async (req, res) => {
-  try {
-    const sesiones = await Sesion.find({ usuarioId: req.usuarioId })
-      .sort({ fecha: -1 })
-      .limit(50);
-    res.json(sesiones);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== REPORTES PDF ==========
-
-app.post('/api/reportes/generar', autenticar, async (req, res) => {
-  try {
-    const { periodo, fecha_inicio, fecha_fin, metricas } = req.body;
-    
-    // Obtener sesiones del período
-    const sesiones = await Sesion.find({
-      usuarioId: req.usuarioId,
-      fecha: {
-        $gte: new Date(fecha_inicio),
-        $lte: new Date(fecha_fin)
-      }
-    });
-    
-    const sesiones_completadas = sesiones.filter(s => s.completada).length;
-    const porcentaje = (sesiones_completadas / sesiones.length) * 100 || 0;
-    
-    // Crear reporte en BD
-    const reporte = new Reporte({
-      usuarioId: req.usuarioId,
-      periodo,
-      fecha_inicio: new Date(fecha_inicio),
-      fecha_fin: new Date(fecha_fin),
-      total_sesiones: sesiones.length,
-      sesiones_completadas,
-      porcentaje_cumplimiento: porcentaje,
-      metricas
-    });
-    
-    // Generar PDF
-    const pdfPath = `reportes/reporte_${req.usuarioId}_${Date.now()}.pdf`;
-    const doc = new PDFDocument();
-    
-    doc.pipe(fs.createWriteStream(pdfPath));
-    
-    // Encabezado
-    doc.fontSize(20).text('REPORTE DE PROGRESO', { align: 'center' });
-    doc.fontSize(12).text(`Período: ${periodo}`, { align: 'center' });
-    doc.moveDown();
-    
-    // Sesiones
-    doc.fontSize(14).text('Sesiones de Entrenamiento', { underline: true });
-    doc.fontSize(11);
-    doc.text(`Total sesiones: ${sesiones.length}`);
-    doc.text(`Sesiones completadas: ${sesiones_completadas}`);
-    doc.text(`Cumplimiento: ${porcentaje.toFixed(1)}%`);
-    doc.moveDown();
-    
-    // Métricas
-    if (metricas) {
-      doc.fontSize(14).text('Medidas Corporales', { underline: true });
-      doc.fontSize(11);
-      
-      if (metricas.peso_inicial) {
-        const diferencia_peso = metricas.peso_final - metricas.peso_inicial;
-        doc.text(`Peso: ${metricas.peso_inicial}kg → ${metricas.peso_final}kg (${diferencia_peso > 0 ? '+' : ''}${diferencia_peso.toFixed(1)}kg)`);
-      }
-      
-      if (metricas.grasa_inicial) {
-        const diferencia_grasa = metricas.grasa_final - metricas.grasa_inicial;
-        doc.text(`Grasa: ${metricas.grasa_inicial}% → ${metricas.grasa_final}% (${diferencia_grasa > 0 ? '+' : ''}${diferencia_grasa.toFixed(1)}%)`);
-      }
-      
-      doc.moveDown();
-    }
-    
-    // Pie
-    doc.fontSize(10);
-    doc.text(`Generado: ${new Date().toLocaleString()}`, { align: 'center' });
-    
-    doc.end();
-    
-    // Esperar a que se complete
-    doc.on('finish', async () => {
-      reporte.pdf_generado = pdfPath;
-      await reporte.save();
-      
-      res.json({
-        success: true,
-        reporte,
-        pdf_url: `/${pdfPath}`
+    if (!doc) {
+      const ultimo = await AppState.findOne({ key }).lean();
+      return res.status(409).json({
+        error: 'conflicto',
+        doc: ultimo ? vistaDe(req, key, ultimo) : { value: null, version: 0 }
       });
-    });
+    }
+    if (key === 'users') {
+      cache.users = Array.isArray(value) ? value : [];
+      cache.usersVersion = doc.version;
+      reflejarClientes(value).catch(e => console.error('⚠️ Espejo clientes:', e.message));
+      if (quitados.length) purgarClientes(quitados).catch(e => console.error('⚠️ Purga clientes:', e.message));
+    }
+    res.json({ success: true, version: doc.version, updatedAt: doc.updatedAt });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/reportes', autenticar, async (req, res) => {
+// Fotos y archivos (chequeos, protocolos). Solo con sesión.
+// Cada archivo recibe una clave aleatoria imposible de adivinar.
+const TIPOS_SEGUROS = /^(image\/(jpeg|png|webp|gif|heic|heif|avif)|application\/pdf)$/i;
+app.post('/api/archivos', conSesion, express.raw({ type: () => true, limit: '10mb' }), async (req, res) => {
   try {
-    const reportes = await Reporte.find({ usuarioId: req.usuarioId })
-      .sort({ createdAt: -1 });
-    res.json(reportes);
+    if (!req.body || !req.body.length) return res.status(400).json({ error: 'Archivo vacío' });
+    let nombre = 'archivo';
+    try { nombre = decodeURIComponent(req.get('X-File-Name') || 'archivo').slice(0, 120); } catch (e) {}
+    const tipo = String(req.get('X-File-Type') || 'application/octet-stream').slice(0, 80);
+    const clave = crypto.randomBytes(18).toString('hex');
+    await Archivo.create({ nombre, tipo, tamano: req.body.length, datos: req.body, clave, subidoPor: req.quien.rol === 'user' ? req.quien.uid : req.quien.coach });
+    res.json({ success: true, url: '/api/archivos/' + clave });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ========== ALIMENTOS (con cache Redis) ==========
-
-app.get('/api/alimentos', autenticar, async (req, res) => {
+app.get('/api/archivos/:id', conSesion, async (req, res) => {
   try {
-    // Intentar obtener del cache
-    const cached = await redisClient.get('alimentos:all');
-    if (cached) {
-      return res.json(JSON.parse(cached));
-    }
-    
-    const alimentos = await Alimento.find().limit(100);
-    
-    // Guardar en cache (4 horas)
-    await redisClient.setEx('alimentos:all', 14400, JSON.stringify(alimentos));
-    
-    res.json(alimentos);
+    const id = String(req.params.id || '');
+    let a = null;
+    if (/^[a-f0-9]{36}$/.test(id)) a = await Archivo.findOne({ clave: id });
+    else if (mongoose.isValidObjectId(id) && req.quien.rol === 'coach') a = await Archivo.findById(id); // enlaces antiguos: solo coach
+    if (!a) return res.status(404).end();
+    const tipo = TIPOS_SEGUROS.test(a.tipo || '') ? a.tipo : 'application/octet-stream';
+    res.set('Content-Type', tipo);
+    if (tipo === 'application/octet-stream') res.set('Content-Disposition', 'attachment');
+    res.set('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(a.datos);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/alimentos/buscar/:nombre', autenticar, async (req, res) => {
+// ===============================================
+// RECUPERACIÓN AUTÓNOMA DE CONTRASEÑA (QA 10-oct)
+// - Solo llega a un correo que la coach verificó. Sin correo verificado no se envía nada.
+// - Respuesta neutral: nunca indica si la cuenta existe.
+// - El enlace NO se registra en logs. El token se guarda como hash, vence en 30 min y es de un solo uso.
+// ===============================================
+const sha256 = s => crypto.createHash('sha256').update(String(s)).digest('hex');
+const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const cuotas = new Map();
+function cuota(clave, max, ventanaMs) {
+  const ahora = Date.now();
+  if (cuotas.size > 5000) cuotas.clear();
+  let r = cuotas.get(clave);
+  if (!r || ahora - r.t > ventanaMs) r = { n: 0, t: ahora };
+  r.n++; cuotas.set(clave, r);
+  return r.n <= max;
+}
+async function enviarCorreoRecuperacion(correo, enlace) {
+  // Modo de prueba: escribe en un archivo local indicado por variable de entorno (nunca activo en Render)
+  if (process.env.YL_TEST_OUTBOX) { fs.appendFileSync(process.env.YL_TEST_OUTBOX, JSON.stringify({ para: correo, enlace }) + '\n'); return true; }
+  const url = process.env.MAIL_WEBHOOK_URL;
+  if (url && typeof fetch === 'function') {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ para: correo, asunto: 'Recupera tu acceso a YL COACH', texto: 'Crea una nueva contraseña en este enlace (vence en 30 minutos): ' + enlace }) });
+      return r.ok;
+    } catch (e) { console.error('Recuperación: el proveedor de correo no respondió.'); return false; }
+  }
+  console.warn('Recuperación: no hay canal de correo configurado; no se envió ningún enlace.');
+  return false;
+}
+
+// Recuperación de contraseña EN PAUSA: desactivada salvo RECUPERACION_ACTIVA=1 (falta canal de correo y contactos verificados)
+const RECUPERACION_ACTIVA = process.env.RECUPERACION_ACTIVA === '1';
+
+// La coach registra y verifica el correo de una clienta (verificación fuera de la app)
+app.post('/api/coach/contactos/:uid', soloCoach, async (req, res) => {
   try {
-    const nombre = req.params.nombre.toLowerCase();
-    const cacheKey = `alimentos:buscar:${nombre}`;
-    
-    // Cache de búsquedas
-    const cached = await redisClient.get(cacheKey);
-    if (cached) {
-      return res.json(JSON.parse(cached));
+    const uid = String(req.params.uid || '');
+    const correo = String((req.body && req.body.correo) || '').trim().toLowerCase();
+    const verificado = !!(req.body && req.body.verificado);
+    if (!RE_CORREO.test(correo) || correo.length > 120) return res.status(400).json({ error: 'Correo no válido.' });
+    if (!cache.users.find(x => userId(x) === uid)) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    if (verificado) {
+      const otro = await Contacto.findOne({ correo, verificado: true, uid: { $ne: uid } }).lean();
+      if (otro) return res.status(409).json({ error: 'Ese correo ya está verificado para otra clienta.' });
     }
-    
-    const alimentos = await Alimento.find({
-      $or: [
-        { nombre: { $regex: nombre, $options: 'i' } },
-        { categoria: { $regex: nombre, $options: 'i' } }
-      ]
-    });
-    
-    await redisClient.setEx(cacheKey, 7200, JSON.stringify(alimentos));
-    
-    res.json(alimentos);
+    await Contacto.updateOne({ uid }, { $set: { uid, correo, verificado, verificadoPor: verificado ? req.quien.nombre : null, verificadoEn: verificado ? new Date() : null, actualizadoEn: new Date() } }, { upsert: true });
+    res.json({ success: true, verificado });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ========== WEBSOCKETS (Notificaciones en tiempo real) ==========
-
-io.on('connection', (socket) => {
-  console.log(`✓ Usuario conectado: ${socket.id}`);
-  
-  // Unirse a sala del usuario
-  socket.on('join_user', (usuarioId) => {
-    socket.join(`usuario:${usuarioId}`);
-    console.log(`Usuario ${usuarioId} se unió a su sala`);
-  });
-  
-  // Unirse a sala del coach
-  socket.on('join_coach', (coachId) => {
-    socket.join(`coach:${coachId}`);
-    console.log(`Coach ${coachId} se unió a su sala`);
-  });
-  
-  // Notificación de nueva sesión
-  socket.on('sesion_iniciada', (data) => {
-    io.to(`coach:${data.coachId}`).emit('notificacion', {
-      tipo: 'sesion_iniciada',
-      usuario: data.usuarioId,
-      rutina: data.rutina,
-      timestamp: new Date()
-    });
-  });
-  
-  // Chat en vivo
-  socket.on('mensaje_chat', (data) => {
-    io.to(`coach:${data.coachId}`).emit('nuevo_mensaje', {
-      usuario: data.usuarioId,
-      mensaje: data.mensaje,
-      timestamp: new Date()
-    });
-  });
-  
-  // Desconexión
-  socket.on('disconnect', () => {
-    console.log(`✗ Usuario desconectado: ${socket.id}`);
-  });
-});
-
-
-// ========== CLIENTES (Creados por coaches) ==========
-
-app.post('/api/clientes', autenticar, esCoach, async (req, res) => {
+app.post('/api/auth/recuperar', async (req, res) => {
+  if (!RECUPERACION_ACTIVA) return res.status(503).json({ error: 'La recuperación de contraseña no está disponible por ahora. Escribe a tu coach.' });
+  const neutral = { success: true, mensaje: 'Si el correo está verificado en tu cuenta, recibirás un enlace en unos minutos.' };
   try {
-    const { usuario, contraseña, nombreCompleto, telefono, edad, objetivo, tipoPerfil, estado, coach, archivos, localId } = req.body;
-    
-    // Validar campos requeridos
-    if (!usuario || !contraseña || !coach) {
-      return res.status(400).json({ success: false, message: 'Faltan usuario, contraseña o coach' });
+    const correo = String((req.body && req.body.correo) || '').trim().toLowerCase();
+    const ip = req.ip || '';
+    if (!cuota('rec-ip|' + ip, 5, 15 * 60e3) || (correo && !cuota('rec-correo|' + correo, 3, 60 * 60e3))) {
+      return res.status(429).json({ error: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' });
     }
-    
-    // Verificar si usuario ya existe
-    const existe = await Cliente.findOne({ usuario: usuario.toLowerCase() });
-    if (existe) {
-      return res.status(409).json({ success: false, message: 'Ese usuario ya existe' });
-    }
-    
-    // Hash de contraseña
-    const salt = await bcryptjs.genSalt(10);
-    const contraseñaHash = await bcryptjs.hash(contraseña, salt);
-    
-    // Crear cliente
-    const cliente = new Cliente({
-      usuario: usuario.toLowerCase(),
-      contraseña: contraseñaHash,
-      nombreCompleto: nombreCompleto || '',
-      telefono: telefono || '',
-      edad: edad || null,
-      objetivo: objetivo || '',
-      tipoPerfil: tipoPerfil || 'general',
-      estado: estado || 'Activo',
-      coach: coach,
-      archivos: archivos || [],
-      localId: localId || null
-    });
-    
-    await cliente.save();
-    
-    // Notificar al coach via WebSocket
-    io.emit('cliente_creado', {
-      cliente: {
-        _id: cliente._id,
-        usuario: cliente.usuario,
-        nombreCompleto: cliente.nombreCompleto,
-        coach: cliente.coach
-      },
-      timestamp: new Date()
-    });
-    
-    res.status(201).json({
-      success: true,
-      cliente: {
-        _id: cliente._id,
-        usuario: cliente.usuario,
-        nombreCompleto: cliente.nombreCompleto
-      }
-    });
+    res.json(neutral); // misma respuesta exista o no la cuenta
+    if (!RE_CORREO.test(correo)) return;
+    const c = await Contacto.findOne({ correo, verificado: true }).lean();
+    if (!c) return;
+    const u = cache.users.find(x => userId(x) === String(c.uid));
+    if (!u || pausado(u)) return;
+    const token = crypto.randomBytes(32).toString('base64url');
+    await Recuperacion.updateMany({ uid: String(c.uid), usado: false }, { $set: { usado: true, usadoEn: new Date() } });
+    await Recuperacion.create({ uid: String(c.uid), hash: sha256(token), expira: new Date(Date.now() + 30 * 60e3) });
+    const base = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    await enviarCorreoRecuperacion(correo, base + '/#recuperar=' + token);
   } catch (error) {
-    console.error('Error creando cliente:', error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Recuperación: error interno al procesar la solicitud.');
+    if (!res.headersSent) res.json(neutral);
   }
 });
 
-// ========== SALUD ==========
-
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    version: 'V64',
-    features: [
-      'Multimedia (videos/imágenes)',
-      'OAuth (Google/Facebook)',
-      'WebSockets (notificaciones)',
-      'Redis (caching)',
-      'PDF (reportes)',
-      '200+ usuarios simultáneos'
-    ],
-    uptime: process.uptime(),
-    timestamp: new Date()
-  });
+app.post('/api/auth/recuperar/confirmar', async (req, res) => {
+  if (!RECUPERACION_ACTIVA) return res.status(503).json({ error: 'La recuperación de contraseña no está disponible por ahora. Escribe a tu coach.' });
+  try {
+    if (!cuota('rec-conf|' + (req.ip || ''), 10, 15 * 60e3)) return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' });
+    const token = String((req.body && req.body.token) || '');
+    const password = String((req.body && req.body.password) || '');
+    const invalido = () => res.status(400).json({ error: 'El enlace no es válido o ya venció. Solicita uno nuevo.' });
+    if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return invalido();
+    if (password.length < 6 || password.length > 100 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres, una letra y un número.' });
+    }
+    // Un solo uso y con vencimiento: la búsqueda y el marcado son una sola operación atómica
+    const r = await Recuperacion.findOneAndUpdate({ hash: sha256(token), usado: false, expira: { $gt: new Date() } }, { $set: { usado: true, usadoEn: new Date() } });
+    if (!r) return invalido();
+    await Recuperacion.updateMany({ uid: String(r.uid), usado: false }, { $set: { usado: true, usadoEn: new Date() } });
+    const u = cache.users.find(x => userId(x) === String(r.uid));
+    if (!u || pausado(u)) return invalido();
+    await guardarCredencial(u, password, true); // sube la versión: las sesiones anteriores quedan revocadas
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo cambiar la contraseña. Intenta de nuevo.' });
+  }
 });
 
-// ========== ERROR HANDLING ==========
-
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(500).json({ 
-    error: err.message || 'Error interno del servidor' 
-  });
+// Cualquier otra ruta /api que no exista: error claro (no el index)
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
-// ========== INICIAR SERVIDOR ==========
+// ===============================================
+// SERVIR INDEX.HTML (IMPORTANTE!)
+// ===============================================
 
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════╗
-║   YAYO APP - BACKEND V64 COMPLETO                 ║
-╠════════════════════════════════════════════════════╣
-║   ✓ Servidor escuchando en puerto ${PORT}            ║
-║   ✓ MongoDB V64 conectado                         ║
-║   ✓ Redis caching activo                          ║
-║   ✓ WebSockets configurado                        ║
-║   ✓ OAuth (Google/Facebook) listo                 ║
-║   ✓ Multimedia (videos/imágenes) soportado        ║
-║   ✓ PDF de reportes habilitado                    ║
-║   ✓ 200+ clientes soportados                      ║
-╚════════════════════════════════════════════════════╝
-  `);
+app.get('*', enviarIndex);
+
+// ===============================================
+// INICIAR SERVIDOR
+// ===============================================
+
+app.listen(PORT, () => {
+  console.log('');
+  console.log('╔════════════════════════════════════════╗');
+  console.log('║   YAYO APP v65 - BACKEND RUNNING       ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log('');
+  console.log('✅ Servidor corriendo en puerto ' + PORT);
+  console.log('📊 Base de datos: yayo_v65');
+  console.log('🔗 API disponible en: http://localhost:' + PORT);
+  console.log('');
 });
 
-module.exports = httpServer;
+module.exports = app;
