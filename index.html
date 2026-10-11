@@ -9659,7 +9659,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.10-ae';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.10-af';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -11353,8 +11353,8 @@ function applyBrand(){
   const tag=document.querySelector('.yv63-tag');if(tag)tag.textContent=b.tagline;
   const line=$('yv63Line');if(line)line.setAttribute('stroke',b.accent);
   document.querySelectorAll('#yv63g stop').forEach(s=>s.setAttribute('stop-color',b.accent));
-  const sh=document.querySelector('.sidebar-header strong');if(sh)sh.textContent=b.name+(role()==='coach'?' COACH':'');
-  document.title=b.name;
+  const sh=document.querySelector('.sidebar-header strong');if(sh)sh.textContent=role()==='coach'?'YL COACH':(b.name+' COACH');
+  document.title=role()==='coach'?'YL COACH':b.name;
   if(role())localStorage.setItem('yayo_last_brand',k);
 }
 window.yv72ApplyBrand=applyBrand;
