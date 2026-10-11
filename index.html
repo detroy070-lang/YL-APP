@@ -79,6 +79,11 @@ body{background:#000}
 .yl-dir-tag.yayo{background:#2a0d12;color:#ff8a9b}.yl-dir-tag.laura{background:#23123a;color:#d8b4fe}.yl-dir-tag.sin{background:#2a2410;color:#fbbf24}
 .yl-dir-owner button{background:#26262a;color:#fff;border:0;border-radius:99px;padding:6px 11px;font-size:11px;font-weight:800;cursor:pointer}
 </style>
+<style id="v8-go-css">
+.v8-go{cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+.v8-go:hover{transform:translateY(-2px);border-color:#4a0a0e}
+.v8-go:focus-visible{outline:2px solid #ff2948;outline-offset:3px}
+</style>
 </head><body><div id="matrixEntry" aria-hidden="true"></div><div id="brainFrequency" aria-hidden="true"><div class="gyfa-frequency-line" style="top:24%;--r:-2deg"></div><div class="gyfa-frequency-line" style="top:51%;--r:1deg"></div><div class="gyfa-frequency-line" style="top:73%;--r:-1deg"></div></div><div id="gyfaToast" role="status"></div><div id="v6ModuleFlash" class="v6-module-flash" aria-hidden="true"></div><section id="loginScreen"><div class="yv63-hero"><svg class="yv63-hero-chart" id="yv63HeroChart" viewBox="0 0 400 180" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="yv63g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ff2948" stop-opacity=".35"/><stop offset="100%" stop-color="#ff2948" stop-opacity="0"/></linearGradient></defs><path id="yv63Area" fill="url(#yv63g)"/><path id="yv63Line" fill="none" stroke="#ff2948" stroke-width="2.5"/></svg><div class="yv63-hero-fade"></div><div class="yv63-brand"><div class="yv63-mark yv63-logo"><svg class="yl-svg" viewBox="0 0 196 124" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Yayo &amp; Laura" data-norecolor="1"><defs><linearGradient id="ylgY" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6a80"/><stop offset=".5" style="stop-color:var(--brand,#ff2948)"/><stop offset="1" style="stop-color:var(--brand2,#b90710)"/></linearGradient><linearGradient id="ylgYd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--brand,#ff2948)"/><stop offset="1" stop-color="#5a0410"/></linearGradient><linearGradient id="ylgL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#e4e4e9"/><stop offset="1" stop-color="#a9a9b0"/></linearGradient><linearGradient id="ylgLd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9c9cf"/><stop offset="1" stop-color="#6e6e75"/></linearGradient><radialGradient id="ylgDot" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".18" stop-color="#ffe1e6"/><stop offset=".48" style="stop-color:var(--brand,#ff2948)"/><stop offset="1" style="stop-color:var(--brand2,#b90710)"/></radialGradient><radialGradient id="ylgHalo"><stop offset="0" style="stop-color:var(--brand,#ff2948)" stop-opacity=".55"/><stop offset="1" style="stop-color:var(--brand,#ff2948)" stop-opacity="0"/></radialGradient></defs><g transform="translate(30 4) skewX(-14)">    <path fill="url(#ylgY)" d="M6 8H25L48 40L71 8H90L57 54V108H39V54Z"/>    <path fill="#000" opacity=".26" d="M80.5 8H90L57 54V108H48V40Z"/>  <path fill="#fff" opacity=".2" d="M6 8H15.5L48 53V108H39V54Z"/>    <path fill="url(#ylgL)" d="M96 8H113V91H158V108H96Z"/>  <path fill="url(#ylgLd)" d="M104.5 8H113V91H158V99.5H104.5Z" opacity=".55"/>  <path fill="#fff" opacity=".5" d="M96 8H104.5V99.5H158V108H96Z"/>    <path d="M6 8H25M71 8H90M96 8H113" stroke="#fff" stroke-opacity=".55" stroke-width="1.2"/></g><g class="yl-orb">  <circle class="yl-glow" cx="176" cy="40" r="20" fill="url(#ylgHalo)"/>  <ellipse cx="176" cy="40" rx="17" ry="6.2" transform="rotate(-24 176 40)" fill="none" stroke="url(#ylgL)" stroke-width="1.6" stroke-opacity=".9" stroke-dasharray="40 9"/>  <circle cx="176" cy="40" r="9" fill="url(#ylgDot)"/>  <ellipse cx="173" cy="36.6" rx="3" ry="1.9" fill="#fff" opacity=".85" transform="rotate(-30 173 36.6)"/></g></svg></div></div><div class="yv63-hero-content"><p class="yv63-tag">Entrena, come y progresa — todo en un solo lugar.</p></div></div><div class="yv63-sheet"><div class="login-card"><div class="form-group"><label>USUARIO</label><input
         id="loginUser"
         value=""
@@ -122,29 +127,21 @@ body{background:#000}
             Bienvenido, Yayo
           </h1><p>
             Centro de control de entrenamiento y nutrición.
-          </p></div><div class="grid grid-4"><div class="module stat"><div class="stat-label">
-              USUARIOS
-            </div><div class="stat-number" id="dashboardUsersCount">
+          </p></div><div class="grid grid-4"><div class="module stat v8-go" data-go="coachUsers" role="button" tabindex="0"><div class="stat-label">USUARIOS</div><div class="stat-number" id="dashboardUsersCount">
               12
-            </div><button class="badge badge-green v6-dashboard-action" onclick="showPage('coachUsers',true)">
+            </div><span class="badge badge-green v6-dashboard-action">
               Activos
-            </button></div><div class="module stat"><div class="stat-label">
-              CHEQUEOS
-            </div><div class="stat-number" id="dashboardCheckinsCount">
+            </span></div><div class="module stat v8-go" data-go="coachCheckins" role="button" tabindex="0"><div class="stat-label">CHEQUEOS</div><div class="stat-number" id="dashboardCheckinsCount">
               4
-            </div><button class="badge badge-yellow v6-dashboard-action" onclick="showPage('coachCheckins',true)">
+            </div><span class="badge badge-yellow v6-dashboard-action">
               Pendientes
-            </button></div><div class="module stat"><div class="stat-label">
-              PROGRESIONES
-            </div><div class="stat-number" id="dashboardProgressCount">
+            </span></div><div class="module stat v8-go" data-go="coachProgress" role="button" tabindex="0"><div class="stat-label">PROGRESIONES</div><div class="stat-number" id="dashboardProgressCount">
               7
-            </div><button class="badge badge-red v6-dashboard-action" onclick="showPage('coachProgress',true)">
+            </div><span class="badge badge-red v6-dashboard-action">
               Revisar
-            </button></div><div class="module stat"><div class="stat-label">
-              RUTINAS
-            </div><div class="stat-number" id="dashboardRoutinesCount">
+            </span></div><div class="module stat v8-go" data-go="coachRoutines" role="button" tabindex="0"><div class="stat-label">RUTINAS</div><div class="stat-number" id="dashboardRoutinesCount">
               24
-            </div><button class="badge v6-dashboard-action" onclick="showPage('coachRoutines',true)">
+            </div><span class="badge v6-dashboard-action">
               Activas
             </button></div></div><br><div class="module"><div class="module-header"><div><div class="module-title">USUARIOS REGISTRADOS</div><div class="module-description">Nombres y estado actual del equipo.</div></div><span class="badge badge-green" id="dashboardRegisteredCount">0</span></div><div class="list" id="dashboardUserNames"></div></div><br><div class="module gyfa-diet-engine-card"><div class="module-title">YAYO · FÓRMULA MAESTRA</div><p class="module-description" style="margin-top:5px">Mifflin–St Jeor + actividad + objetivo + distribución de macros. Los valores son editables y sirven como punto de partida para calibrar con seguimiento real.</p><div class="grid grid-3" style="margin-top:14px"><div class="form-group"><label>EDAD</label><input id="gyfaAge" type="number" value="22" min="1"></div><div class="form-group"><label>SEXO</label><select id="gyfaSex"><option value="male">Hombre</option><option value="female">Mujer</option></select></div><div class="form-group"><label>PESO (KG)</label><input id="gyfaWeight" type="number" value="89.25" step="0.1"></div><div class="form-group"><label>ALTURA (CM)</label><input id="gyfaHeight" type="number" value="176"></div><div class="form-group"><label>PASOS / DÍA</label><input id="gyfaSteps" type="number" value="10000"></div><div class="form-group"><label>ACTIVIDAD</label><select id="gyfaActivity"><option value="1.2">Sedentaria</option><option value="1.375">Ligera</option><option value="1.55" selected>Moderada</option><option value="1.725">Alta</option><option value="1.9">Muy alta</option></select></div><div class="form-group"><label>PROTEÍNA (G/KG)</label><input id="gyfaProteinKg" type="number" value="2" step="0.1"></div><div class="form-group"><label>GRASA (G/KG)</label><input id="gyfaFatKg" type="number" value="0.8" step="0.1"></div><div class="form-group"><label>AJUSTE OBJETIVO</label><select id="gyfaGoalAdjust"><option value="-0.15">Pérdida de grasa (-15%)</option><option value="0">Mantenimiento</option><option value="0.08" selected>Recomposición (+8%)</option><option value="0.12">Hipertrofia (+12%)</option></select></div></div><button class="btn btn-red" onclick="gyfaCalculateDiet()">CALCULAR DIETA</button><div id="gyfaDietResults" class="gyfa-diet-results"></div></div><div class="grid grid-2"><div class="module"><div class="module-header"><div><div class="module-title">
                   Atención
@@ -747,7 +744,8 @@ function yayoModuleIcon(text){
   if(/usuario|cliente|equipo/.test(t)) p='<circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-7 6-7s6 3 6 7M16 7c3 0 5 2 5 5"/>';
   else if(/rutina|ejercicio|entrena|sesion/.test(t)) p='<path d="M6 9v6M18 9v6M3 10v4M21 10v4M6 12h12"/>';
   else if(/dieta|macro|alimento|nutri|prepar/.test(t)) p='<circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/>';
-  else if(/progres|peso|medida|estad|check/.test(t)) p='<path d="M4 18V9M10 18V5M16 18v-7M22 18V3"/>';
+  else if(/chequeo|check/.test(t)) p='<path d="M4 12.5l5 5L20 6.5"/>';
+  else if(/progres|peso|medida|estad/.test(t)) p='<path d="M4 18V9M10 18V5M16 18v-7M22 18V3"/>';
   else if(/calendar|calend|fecha/.test(t)) p='<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>';
   else if(/gyfa|fórmula|formula|motor|auto/.test(t)) p='<path d="M12 2 4 6v6c0 5 3 8 8 10 5-2 8-5 8-10V6Z"/><path d="m9 12 2 2 4-5"/>';
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
@@ -3386,7 +3384,7 @@ function v6RenderCheckins(){
   if(!list)return;
   const rows=(state.checkins||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
   if(rows.length){
-    list.innerHTML=rows.map(item=>`<div class="list-item"><div><strong>${v6EscapeHtml(item.user)}</strong><small>${item.weight?item.weight+' kg · ':''}${item.waist?item.waist+' cm cintura · ':''}${item.bodyFat?item.bodyFat+'% grasa · ':''}${v6EscapeHtml(item.notes||'Sin notas')} · ${Number(item.photos)||0} foto(s)</small></div><span class="badge badge-green">${new Date(`${item.date}T12:00:00`).toLocaleDateString('es-CO',{day:'numeric',month:'short'})}</span></div>`).join('');
+    list.innerHTML=rows.map(item=>`<div class="list-item"><div><strong>${v6EscapeHtml(item.user)}</strong><small>${item.weight?item.weight+' kg · ':''}${item.waist?item.waist+' cm cintura · ':''}${item.bodyFat?item.bodyFat+'% grasa · ':''}${v6EscapeHtml(item.notes||'Sin notas')} · ${Number(item.photos)||0} foto(s)</small></div><span class="badge badge-green">${new Date(`${item.date}T12:00:00`).toLocaleDateString('es-CO',{day:'numeric',month:'short'})}</span><button type="button" class="yl-ck-del" onclick="v8DeleteCheckin(${Number(item.id)})">Eliminar</button></div>`).join('');
   }else{
     list.innerHTML=(state.users||[]).map(user=>`<div class="list-item"><span>${v6EscapeHtml(user.name)}</span><span class="badge">${v6EscapeHtml(user.checkin||'Pendiente')}</span></div>`).join('');
   }
@@ -9634,7 +9632,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.09-z';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.09-ab';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -10088,7 +10086,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 ========================================================= */
 (function(){
   "use strict";
-  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones"];
+  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados"];
   let dbNs=null, assetsNs=null, ready=false, suppress=false;
   const timers={};
 
@@ -13981,4 +13979,39 @@ body.yl-shake #loginScreen,body.yl-shake #app.active{animation:ylShake .22s cubi
 })();
 </script>
 
+<script id="v8-go-js">
+document.addEventListener('click',function(e){var c=e.target.closest&&e.target.closest('.v8-go[data-go]');if(c&&typeof showPage==='function')showPage(c.dataset.go,true)});
+document.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var c=e.target.closest&&e.target.closest('.v8-go[data-go]');if(c&&typeof showPage==='function'){e.preventDefault();showPage(c.dataset.go,true)}});
+</script>
+<style id="yl-ck-del-css">
+.yl-ck-del{margin-left:10px;background:transparent;color:#ff8a9b;border:1px solid #4a0a0e;border-radius:99px;padding:5px 11px;font-size:11px;font-weight:800;cursor:pointer}
+.yl-ck-del:hover{background:#3a0b10;color:#fff}
+</style>
+<script id="yl-ck-del">
+(function(){
+  const fechaCorta=iso=>new Date(`${iso}T12:00:00`).toLocaleDateString('es-CO',{day:'numeric',month:'short'});
+  window.v8DeleteCheckin=function(id){
+    try{
+      const lista=Array.isArray(state.checkins)?state.checkins:[];
+      const item=lista.find(x=>Number(x.id)===Number(id));
+      if(!item){alert('No se encontró ese chequeo.');return}
+      if(!confirm(`¿Eliminar el chequeo de ${item.user} del ${fechaCorta(item.date)}? Podrás verlo en el historial de eliminados.`))return;
+      state.checkins=lista.filter(x=>Number(x.id)!==Number(id));
+      if(!Array.isArray(state.chequeosEliminados))state.chequeosEliminados=[];
+      state.chequeosEliminados.push(Object.assign({},item,{eliminadoEn:new Date().toISOString(),eliminadoPor:(sessionStorage.getItem('yayo_active_coach')||'Coach')}));
+      /* el cliente vuelve a la fecha de su chequeo anterior, o a "Pendiente" si no le queda ninguno */
+      const propios=state.checkins.filter(x=>x.user===item.user);
+      const conFecha=propios.filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(String(x.date||''))).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+      const perfil=(state.users||[]).find(u=>u.name===item.user);
+      if(perfil)perfil.checkin=conFecha[0]?fechaCorta(conFecha[0].date):(propios.length?'Registrado':'Pendiente');
+      if(typeof saveState==='function')saveState();
+      try{v6RenderCheckins()}catch(e){}
+      try{v6RefreshDashboard()}catch(e){}
+      try{v10RenderCheckCalendar&&v10RenderCheckCalendar()}catch(e){}
+      try{v7RenderCalendar&&v7RenderCalendar()}catch(e){}
+      try{gyfaToast&&gyfaToast('Chequeo eliminado. Queda en el historial.')}catch(e){}
+    }catch(e){console.error(e);alert('No se pudo eliminar el chequeo. Intenta de nuevo.')}
+  };
+})();
+</script>
 </body></html>
