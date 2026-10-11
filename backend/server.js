@@ -150,6 +150,26 @@ const Coach = mongoose.model('Coach', coachSchema);
 const Cliente = mongoose.model('Cliente', clienteSchema);
 const Dieta = mongoose.model('Dieta', dietaSchema);
 
+// QA 10-oct · recuperación autónoma: contacto verificado por la coach y tokens de un solo uso (colecciones separadas: el guardado de clientes no las pisa)
+const contactoSchema = new mongoose.Schema({
+  uid: { type: String, unique: true },
+  correo: { type: String, index: true },
+  verificado: { type: Boolean, default: false },
+  verificadoPor: String,
+  verificadoEn: Date,
+  actualizadoEn: { type: Date, default: Date.now }
+}, { collection: 'contactos' });
+const recuperacionSchema = new mongoose.Schema({
+  uid: { type: String, index: true },
+  hash: { type: String, unique: true },
+  expira: Date,
+  usado: { type: Boolean, default: false },
+  creado: { type: Date, default: Date.now },
+  usadoEn: Date
+}, { collection: 'recuperaciones' });
+const Contacto = mongoose.model('Contacto', contactoSchema);
+const Recuperacion = mongoose.model('Recuperacion', recuperacionSchema);
+
 // ===============================================
 // RUTAS API
 // ===============================================
@@ -713,7 +733,8 @@ function combinarBiblioteca(completo, enviado, quien) {
 // Nunca se guardan contraseñas dentro de los usuarios de la app
 function limpiarUsuarios(value) {
   if (!Array.isArray(value)) return value;
-  return value.map(sinClave);
+  // Las cuentas de Yayo y Laura no son clientes: nunca viajan en la lista de usuarios
+  return value.filter(u => u && !COACHES.includes(norm(u.name))).map(sinClave);
 }
 
 // Todos los bloques de una vez (carga inicial de la app)
@@ -890,6 +911,109 @@ app.get('/api/archivos/:id', conSesion, async (req, res) => {
     res.send(a.datos);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ===============================================
+// RECUPERACIÓN AUTÓNOMA DE CONTRASEÑA (QA 10-oct)
+// - Solo llega a un correo que la coach verificó. Sin correo verificado no se envía nada.
+// - Respuesta neutral: nunca indica si la cuenta existe.
+// - El enlace NO se registra en logs. El token se guarda como hash, vence en 30 min y es de un solo uso.
+// ===============================================
+const sha256 = s => crypto.createHash('sha256').update(String(s)).digest('hex');
+const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const cuotas = new Map();
+function cuota(clave, max, ventanaMs) {
+  const ahora = Date.now();
+  if (cuotas.size > 5000) cuotas.clear();
+  let r = cuotas.get(clave);
+  if (!r || ahora - r.t > ventanaMs) r = { n: 0, t: ahora };
+  r.n++; cuotas.set(clave, r);
+  return r.n <= max;
+}
+async function enviarCorreoRecuperacion(correo, enlace) {
+  // Modo de prueba: escribe en un archivo local indicado por variable de entorno (nunca activo en Render)
+  if (process.env.YL_TEST_OUTBOX) { fs.appendFileSync(process.env.YL_TEST_OUTBOX, JSON.stringify({ para: correo, enlace }) + '\n'); return true; }
+  const url = process.env.MAIL_WEBHOOK_URL;
+  if (url && typeof fetch === 'function') {
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ para: correo, asunto: 'Recupera tu acceso a YL COACH', texto: 'Crea una nueva contraseña en este enlace (vence en 30 minutos): ' + enlace }) });
+      return r.ok;
+    } catch (e) { console.error('Recuperación: el proveedor de correo no respondió.'); return false; }
+  }
+  console.warn('Recuperación: no hay canal de correo configurado; no se envió ningún enlace.');
+  return false;
+}
+
+// Recuperación de contraseña EN PAUSA: desactivada salvo RECUPERACION_ACTIVA=1 (falta canal de correo y contactos verificados)
+const RECUPERACION_ACTIVA = process.env.RECUPERACION_ACTIVA === '1';
+
+// La coach registra y verifica el correo de una clienta (verificación fuera de la app)
+app.post('/api/coach/contactos/:uid', soloCoach, async (req, res) => {
+  try {
+    const uid = String(req.params.uid || '');
+    const correo = String((req.body && req.body.correo) || '').trim().toLowerCase();
+    const verificado = !!(req.body && req.body.verificado);
+    if (!RE_CORREO.test(correo) || correo.length > 120) return res.status(400).json({ error: 'Correo no válido.' });
+    if (!cache.users.find(x => userId(x) === uid)) return res.status(404).json({ error: 'Usuario no encontrado.' });
+    if (verificado) {
+      const otro = await Contacto.findOne({ correo, verificado: true, uid: { $ne: uid } }).lean();
+      if (otro) return res.status(409).json({ error: 'Ese correo ya está verificado para otra clienta.' });
+    }
+    await Contacto.updateOne({ uid }, { $set: { uid, correo, verificado, verificadoPor: verificado ? req.quien.nombre : null, verificadoEn: verificado ? new Date() : null, actualizadoEn: new Date() } }, { upsert: true });
+    res.json({ success: true, verificado });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/recuperar', async (req, res) => {
+  if (!RECUPERACION_ACTIVA) return res.status(503).json({ error: 'La recuperación de contraseña no está disponible por ahora. Escribe a tu coach.' });
+  const neutral = { success: true, mensaje: 'Si el correo está verificado en tu cuenta, recibirás un enlace en unos minutos.' };
+  try {
+    const correo = String((req.body && req.body.correo) || '').trim().toLowerCase();
+    const ip = req.ip || '';
+    if (!cuota('rec-ip|' + ip, 5, 15 * 60e3) || (correo && !cuota('rec-correo|' + correo, 3, 60 * 60e3))) {
+      return res.status(429).json({ error: 'Demasiadas solicitudes. Intenta de nuevo en 15 minutos.' });
+    }
+    res.json(neutral); // misma respuesta exista o no la cuenta
+    if (!RE_CORREO.test(correo)) return;
+    const c = await Contacto.findOne({ correo, verificado: true }).lean();
+    if (!c) return;
+    const u = cache.users.find(x => userId(x) === String(c.uid));
+    if (!u || pausado(u)) return;
+    const token = crypto.randomBytes(32).toString('base64url');
+    await Recuperacion.updateMany({ uid: String(c.uid), usado: false }, { $set: { usado: true, usadoEn: new Date() } });
+    await Recuperacion.create({ uid: String(c.uid), hash: sha256(token), expira: new Date(Date.now() + 30 * 60e3) });
+    const base = process.env.APP_URL || (req.protocol + '://' + req.get('host'));
+    await enviarCorreoRecuperacion(correo, base + '/#recuperar=' + token);
+  } catch (error) {
+    console.error('Recuperación: error interno al procesar la solicitud.');
+    if (!res.headersSent) res.json(neutral);
+  }
+});
+
+app.post('/api/auth/recuperar/confirmar', async (req, res) => {
+  if (!RECUPERACION_ACTIVA) return res.status(503).json({ error: 'La recuperación de contraseña no está disponible por ahora. Escribe a tu coach.' });
+  try {
+    if (!cuota('rec-conf|' + (req.ip || ''), 10, 15 * 60e3)) return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo en 15 minutos.' });
+    const token = String((req.body && req.body.token) || '');
+    const password = String((req.body && req.body.password) || '');
+    const invalido = () => res.status(400).json({ error: 'El enlace no es válido o ya venció. Solicita uno nuevo.' });
+    if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return invalido();
+    if (password.length < 6 || password.length > 100 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres, una letra y un número.' });
+    }
+    // Un solo uso y con vencimiento: la búsqueda y el marcado son una sola operación atómica
+    const r = await Recuperacion.findOneAndUpdate({ hash: sha256(token), usado: false, expira: { $gt: new Date() } }, { $set: { usado: true, usadoEn: new Date() } });
+    if (!r) return invalido();
+    await Recuperacion.updateMany({ uid: String(r.uid), usado: false }, { $set: { usado: true, usadoEn: new Date() } });
+    const u = cache.users.find(x => userId(x) === String(r.uid));
+    if (!u || pausado(u)) return invalido();
+    await guardarCredencial(u, password, true); // sube la versión: las sesiones anteriores quedan revocadas
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo cambiar la contraseña. Intenta de nuevo.' });
   }
 });
 
