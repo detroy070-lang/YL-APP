@@ -392,8 +392,33 @@ async function prepararSeguridad() {
   }
   // 5) Por si quedó alguna contraseña en la colección "clientes"
   await Cliente.updateMany({ password: { $exists: true } }, { $unset: { password: 1 } });
+  // 6) Los datos heredados del navegador (versiones viejas) ya no se importan:
+  //    el servidor es la única fuente. Así un cliente borrado no puede volver desde un navegador viejo.
+  const mig = await AppState.findOne({ key: 'migraciones' }).lean();
+  if (!mig) {
+    await AppState.create({ key: 'migraciones', json: JSON.stringify({ legacyUsers: 'hecho' }), version: 1, updatedAt: new Date() });
+  } else {
+    let m = {}; try { m = JSON.parse(mig.json || '{}') || {}; } catch (e) {}
+    if (m.legacyUsers !== 'hecho') {
+      await AppState.updateOne({ key: 'migraciones' }, { $set: { json: JSON.stringify(Object.assign(m, { legacyUsers: 'hecho' })), updatedAt: new Date() }, $inc: { version: 1 } });
+    }
+  }
   cache.listo = true;
   console.log('✅ Seguridad lista: ' + cache.creds.size + ' credenciales de clientes.');
+}
+
+// Al borrar clientes de la app se borra también lo que quedó de ellos en MongoDB:
+// credenciales de acceso y archivos (fotos, chequeos) que subieron.
+async function purgarClientes(ids) {
+  const uids = ids.map(String);
+  uids.forEach(uid => cache.creds.delete(uid));
+  await Credencial.deleteMany({ uid: { $in: uids } });
+  await Archivo.deleteMany({ subidoPor: { $in: uids } });
+}
+function idsQuitados(anterior, nuevo) {
+  const viejos = Array.isArray(anterior) ? anterior : [];
+  const quedan = new Set((Array.isArray(nuevo) ? nuevo : []).map(u => userId(u)));
+  return viejos.filter(u => u && u.id != null && !COACHES.includes(norm(u.name)) && !quedan.has(userId(u))).map(u => userId(u));
 }
 
 async function guardarCredencial(u, plano, subirVersion = true) {
@@ -776,6 +801,7 @@ app.put('/api/state/:key', conSesion, async (req, res) => {
     }
 
     if (key === 'users') value = limpiarUsuarios(value);
+    const quitados = key === 'users' && actual ? idsQuitados(formatoEstado(actual).value, value) : [];
     const json = JSON.stringify(value);
     if (Buffer.byteLength(json) > 15 * 1024 * 1024) {
       return res.status(413).json({ error: 'El bloque es demasiado grande' });
@@ -825,6 +851,7 @@ app.put('/api/state/:key', conSesion, async (req, res) => {
       cache.users = Array.isArray(value) ? value : [];
       cache.usersVersion = doc.version;
       reflejarClientes(value).catch(e => console.error('⚠️ Espejo clientes:', e.message));
+      if (quitados.length) purgarClientes(quitados).catch(e => console.error('⚠️ Purga clientes:', e.message));
     }
     res.json({ success: true, version: doc.version, updatedAt: doc.updatedAt });
   } catch (error) {
