@@ -519,6 +519,8 @@ function fallo(clave) {
 setInterval(() => { const now = Date.now(); for (const [k, r] of intentos) if (!r.hasta || r.hasta < now) intentos.delete(k); }, 30 * 60 * 1000).unref();
 
 const sinClave = u => { if (!u || typeof u !== 'object') return u; const c = Object.assign({}, u); delete c.password; return c; };
+// La ficha (salud, deporte, nutrición) es de uso exclusivo del coach: el cliente no la recibe.
+const sinFicha = u => { const c = sinClave(u); if (c && typeof c === 'object') { delete c.ficha; delete c.fichaHistorial; delete c.clinica; delete c.healthNotes; delete c.objetivoHistorial; } return c; };
 function respuestaSesion(s) {
   return s.rol === 'coach'
     ? { success: true, rol: 'coach', coach: s.coach, nombre: s.nombre }
@@ -621,7 +623,9 @@ const SOLO_LECTURA = ['brands', 'foodNutrition', 'exerciseVideos'];
 // Bloques que el cliente sí puede modificar (solo en lo suyo)
 const CLIENTE_ESCRIBE = ['users', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'progressLogs'];
 // Datos de su propia ficha que el cliente NO puede cambiar
-const CAMPOS_PROTEGIDOS = ['id', 'name', 'status', 'coachId', 'bodybuilder', 'createdAt', 'protocolPdf', 'protocolFiles', 'password'];
+const CAMPOS_PROTEGIDOS = ['id', 'name', 'status', 'coachId', 'bodybuilder', 'createdAt', 'protocolPdf', 'protocolFiles', 'password',
+  // QA 14-oct: objetivo y ficha (expediente) son exclusivos del coach
+  'objetivo', 'objetivoHistorial', 'goal', 'ficha', 'fichaHistorial', 'clinica', 'healthNotes'];
 
 function esDelCliente(x, s) {
   if (!x || typeof x !== 'object') return false;
@@ -643,7 +647,7 @@ function vistaCliente(key, value, s) {
   if (key === 'users') {
     return (Array.isArray(value) ? value : [])
       .filter(u => u && (userId(u) === s.uid || COACHES.includes(norm(u.name))))
-      .map(sinClave);
+      .map(sinFicha);
   }
   if (key === 'issuedKeys' || key === 'accessRequests') return [];
   if (SOLO_LECTURA.includes(key)) return value;

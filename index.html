@@ -127,7 +127,7 @@ body{background:#000}
             Bienvenido, Yayo
           </h1><p>
             Centro de control de entrenamiento y nutrición.
-          </p><style id="yl-dash-alcance-2026-10-10">.yl-dash-alcance{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.yl-dash-alcance button{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #3a3a3f;background:transparent;color:inherit;font:inherit;font-size:14px;font-weight:600;cursor:pointer}.yl-dash-alcance button[aria-pressed="true"]{background:#e50914;border-color:#e50914;color:#fff}.yl-dash-alcance button:focus-visible{outline:3px solid #ffb4b4;outline-offset:2px}</style><div class="yl-dash-alcance" role="group" aria-label="Alcance de las cifras del dashboard"><button type="button" aria-pressed="true" data-dash-alcance="mias" onclick="ylDashSetAlcance('mias')">Mis clientes</button><button type="button" aria-pressed="false" data-dash-alcance="todas" onclick="ylDashSetAlcance('todas')">Todas</button></div></div><div class="grid grid-4"><div class="module stat v8-go" data-go="coachUsers" role="button" tabindex="0"><div class="stat-label">USUARIOS</div><div class="stat-number" id="dashboardUsersCount">
+          </p><style id="yl-dash-alcance-2026-10-10">.yl-dash-alcance{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.yl-dash-alcance button{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #3a3a3f;background:transparent;color:inherit;font:inherit;font-size:14px;font-weight:600;cursor:pointer}.yl-dash-alcance button[aria-pressed="true"]{background:#e50914;border-color:#e50914;color:#fff}.yl-dash-alcance button:focus-visible{outline:3px solid #ffb4b4;outline-offset:2px}</style><div class="yl-dash-alcance" role="group" aria-label="Alcance de las cifras del dashboard" hidden><button type="button" aria-pressed="true" data-dash-alcance="mias" onclick="ylDashSetAlcance('mias')">Mis clientes</button><button type="button" aria-pressed="false" data-dash-alcance="todas" onclick="ylDashSetAlcance('todas')">Todas</button></div></div><div class="grid grid-4"><div class="module stat v8-go" data-go="coachUsers" role="button" tabindex="0"><div class="stat-label">USUARIOS</div><div class="stat-number" id="dashboardUsersCount">
               12
             </div><span class="badge badge-green v6-dashboard-action">
               Activos
@@ -3355,7 +3355,8 @@ function v6RevealPage(id,reset=true){
 }
 
 /* Alcance del dashboard (aprobado: Mis clientes por defecto; Todas opcional). Chequeos y progresiones cuentan solo clientas activas. */
-window.ylDashAlcance=window.ylDashAlcance||'mias';
+window.YL_PANEL_UNICO=true;/* QA 14-oct: Yayo pidió un solo panel para todos los clientes */
+window.ylDashAlcance=window.ylDashAlcance||(window.YL_PANEL_UNICO?'todas':'mias');
 function ylDashSetAlcance(v){
   window.ylDashAlcance=v==='todas'?'todas':'mias';
   document.querySelectorAll('[data-dash-alcance]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.dashAlcance===window.ylDashAlcance)));
@@ -3363,7 +3364,7 @@ function ylDashSetAlcance(v){
 }
 function ylDashUsuarios(){
   const all=state.users||[];
-  if(window.ylDashAlcance==='todas')return all;
+  if(window.YL_PANEL_UNICO||window.ylDashAlcance==='todas')return all;
   const yo=(sessionStorage.getItem('yayo_active_coach')||localStorage.getItem('yayo_active_coach')||'yayo').toLowerCase()==='laura'?'laura':'yayo';
   return all.filter(u=>(u&&u.coachId==='laura'?'laura':(u&&u.coachId==='yayo'?'yayo':null))===yo);
 }
@@ -3375,7 +3376,7 @@ function v6RefreshDashboard(){
   const review=activos.filter(user=>user.progression==='Atención').length;
   const values={dashboardUsersCount:active,dashboardCheckinsCount:pending,dashboardProgressCount:review,dashboardRoutinesCount:(state.routines||[]).length,dashboardRegisteredCount:users.length};
   Object.entries(values).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=value;});
-  const alc=window.ylDashAlcance==='todas'?' (todas)':'';
+  const alc=(!window.YL_PANEL_UNICO&&window.ylDashAlcance==='todas')?' (todas)':'';
   const ap=document.getElementById('dashAtencionProgreso');if(ap)ap.textContent=review+(review===1?' clienta para revisar':' clientas para revisar')+alc+'.';
   const ac=document.getElementById('dashAtencionChequeos');if(ac)ac.textContent=pending+(pending===1?' clienta con chequeo pendiente':' clientas con chequeo pendiente')+alc+'.';
   const names=document.getElementById('dashboardUserNames');
@@ -8387,7 +8388,7 @@ function render(){
 function rows(){
  let a=day().exercises||[];
  if(!a.length)return '<div class="yv47-empty">Pulsa “+ Ejercicio”. En el mismo campo de ejercicio puedes escribir y buscar entre los '+db().length+' ejercicios registrados.</div>';
- return a.map((x,i)=>`<div class="yv47-row" draggable="true" ondragstart="yv47Drag(${i})" ondragover="event.preventDefault()" ondrop="yv47Drop(${i})"><span class="yv47-drag">⋮⋮</span><input class="yv49-exercise-input" value="${esc(x.name)}" list="yv49ExerciseList" placeholder="Buscar ejercicio…" oninput="yv49ExerciseInput(${i},this.value)" onchange="yv49ValidateExercise(${i},this.value)"><input type="number" min="1" max="20" value="${+x.sets||3}" title="Series" aria-label="Series" oninput="yv47Edit(${i},'sets',this.value)" onchange="yv47Edit(${i},'sets',this.value)"><input value="${esc(x.reps||"8-12")}" title="Repeticiones (ej. 8-12)" aria-label="Repeticiones" oninput="yv47Edit(${i},'reps',this.value)" onchange="yv47Edit(${i},'reps',this.value)"><input type="number" min="0" max="5" value="${x.rir??2}" title="RIR (repeticiones en reserva)" aria-label="RIR" oninput="yv47Edit(${i},'rir',this.value)" onchange="yv47Edit(${i},'rir',this.value)"><select title="Tiempo de descanso" aria-label="Descanso" onchange="yv47Edit(${i},'rest',this.value)">${[60,120,180,240,300].map(v=>`<option value="${v}" ${Number(x.rest||90)===v||(v===120&&![60,120,180,240,300].includes(Number(x.rest||90)))?"selected":""}>${v/60} min</option>`).join("")}</select><select title="Método de ejecución" aria-label="Método" onchange="yv47Edit(${i},'method',this.value)">${METHODS.map(m=>`<option ${m===(x.method||"Tradicional")?"selected":""}>${m}</option>`).join("")}</select><button class="yv47-x" onclick="yv47Del(${i})">×</button></div>`).join("")
+ return a.map((x,i)=>`<div class="yv47-row" draggable="true" ondragstart="yv47Drag(${i})" ondragover="event.preventDefault()" ondrop="yv47Drop(${i})"><span class="yv47-drag">⋮⋮</span><input class="yv49-exercise-input" value="${esc(x.name)}" list="yv49ExerciseList" placeholder="Buscar ejercicio…" oninput="yv49ExerciseInput(${i},this.value)" onchange="yv49ValidateExercise(${i},this.value)"><input type="number" min="1" max="20" value="${+x.sets||3}" title="Series" aria-label="Series" oninput="yv47Edit(${i},'sets',this.value)" onchange="yv47Edit(${i},'sets',this.value)"><input value="${esc(x.reps||"8-12")}" title="Repeticiones (ej. 8-12)" aria-label="Repeticiones" oninput="yv47Edit(${i},'reps',this.value)" onchange="yv47Edit(${i},'reps',this.value)"><input type="text" inputmode="numeric" maxlength="5" value="${esc(String(x.rir??2))}" title="RIR (repeticiones en reserva, ej. 2 o 3-4)" aria-label="RIR" oninput="yv47Edit(${i},'rir',this.value)" onchange="yv47Edit(${i},'rir',this.value)"><select title="Tiempo de descanso" aria-label="Descanso" onchange="yv47Edit(${i},'rest',this.value)">${[20,30,45,60,75,90,120,150,180,240,300].map(v=>`<option value="${v}" ${Number(x.rest||90)===v||(v===120&&![20,30,45,60,75,90,120,150,180,240,300].includes(Number(x.rest||90)))?"selected":""}>${v<60||v%60?v+" s":v/60+" min"}</option>`).join("")}</select><select title="Método de ejecución" aria-label="Método" onchange="yv47Edit(${i},'method',this.value)">${METHODS.map(m=>`<option ${m===(x.method||"Tradicional")?"selected":""}>${m}</option>`).join("")}</select><button class="yv47-x" onclick="yv47Del(${i})">×</button></div>`).join("")
 }
 function cardioRows(){
  let a=day().cardio||[];
@@ -8398,7 +8399,9 @@ function cardioRows(){
  return a.map((x,i)=>`<div class="yv49-cardio-row"><select onchange="yv49CardioEdit(${i},'type',this.value)">${types.map(v=>`<option ${v===(x.type||"Caminata")?"selected":""}>${v}</option>`).join("")}</select><div class="yv49-unit"><input type="number" min="1" max="240" value="${+x.minutes||20}" onchange="yv49CardioEdit(${i},'minutes',this.value)"><span>min</span></div><select onchange="yv49CardioEdit(${i},'intensity',this.value)">${intensities.map(v=>`<option ${v===(x.intensity||"Moderada")?"selected":""}>${v}</option>`).join("")}</select><select onchange="yv49CardioEdit(${i},'mode',this.value)">${modes.map(v=>`<option ${v===(x.mode||"Continuo")?"selected":""}>${v}</option>`).join("")}</select><button class="yv47-x" onclick="yv49DelCardio(${i})">×</button></div>`).join("")
 }
 window.yv47Day=d=>{active=d;render()};
-window.yv47Edit=(i,k,v)=>{let x=day().exercises[i];if(!x)return;if(k==="sets"&&!(Number(v)>0))return;if(k==="reps"&&!String(v??"").trim())return;x[k]=["sets","rir","rest"].includes(k)?Number(v):v};
+window.yv47Edit=(i,k,v)=>{let x=day().exercises[i];if(!x)return;if(k==="sets"&&!(Number(v)>0))return;if(k==="reps"&&!String(v??"").trim())return;
+ if(k==="rir"){let t=String(v??"").trim().replace(/\s+/g,"").replace("–","-");if(!/^\d(-\d)?$/.test(t))return;x.rir=/-/.test(t)?t:Number(t);return}
+ x[k]=["sets","rest"].includes(k)?Number(v):v};
 window.yv47Del=i=>{day().exercises.splice(i,1);render()};
 window.yv47AddBlank=()=>{day().rest=false;day().exercises.push({name:"",sets:3,reps:"8-12",rir:2,rest:120,method:"Tradicional"});render()};
 window.yv49ExerciseInput=(i,v)=>{let x=day().exercises[i];if(x)x.name=v};
@@ -8453,7 +8456,7 @@ window.yv47Flush=function(){
   let nm=q('input.yv49-exercise-input');if(nm&&nm.value.trim())x.name=nm.value.trim();
   let s=q('input[aria-label=Series]');if(s&&Number(s.value)>0)x.sets=Number(s.value);
   let r=q('input[aria-label=Repeticiones]');if(r&&r.value.trim())x.reps=r.value.trim();
-  let ri=q('input[aria-label=RIR]');if(ri&&ri.value!==''&&Number(ri.value)>=0)x.rir=Number(ri.value);
+  let ri=q('input[aria-label=RIR]');if(ri){let t=String(ri.value).trim().replace(/\s+/g,'').replace('–','-');if(/^\d(-\d)?$/.test(t))x.rir=/-/.test(t)?t:Number(t)}
   let de=q('select[aria-label=Descanso]');if(de&&de.value!=='')x.rest=Number(de.value);
   let me=q('select[aria-label="Método"]');if(me&&me.value)x.method=me.value;
  });
@@ -8463,7 +8466,7 @@ window.yv47SaveWeek=()=>{
  let u=selectedUser();if(!u)return window.gyfaToast?.("Selecciona USUARIO DEL PLAN antes de guardar.");
  let r=ensure(),training=Object.values(r.days).filter(d=>!d.rest&&((d.exercises||[]).length||(d.cardio||[]).length));
  if(!training.length)return window.gyfaToast?.("La semana no contiene entrenamientos.");
- for(let d of training){for(let c of (d.cardio||[])){if(!(c.minutes>0))return window.gyfaToast?.("Revisa la duración del cardio.");}for(let e of (d.exercises||[])){if(!String(e.name||"").trim())return window.gyfaToast?.("Hay ejercicios sin nombre.");if(!(e.sets>0)||!String(e.reps??"").trim()||!(e.rest>=0)||!(e.rir>=0))return window.gyfaToast?.("Revisa series, repeticiones, RIR y descanso.")}}
+ for(let d of training){for(let c of (d.cardio||[])){if(!(c.minutes>0))return window.gyfaToast?.("Revisa la duración del cardio.");}for(let e of (d.exercises||[])){if(!String(e.name||"").trim())return window.gyfaToast?.("Hay ejercicios sin nombre.");if(!(e.sets>0)||!String(e.reps??"").trim()||!(e.rest>=0)||!/^\d(-\d)?$/.test(String(e.rir??"")))return window.gyfaToast?.("Revisa series, repeticiones, RIR y descanso de "+e.name+".")}}
  try{
   let enviado=clone(r);delete enviado._uid;window.yv42Assign(u.id,"routine",enviado);
   let guardado=((state.userAssignments||{})[String(u.id)]||{}).routine;
@@ -9285,7 +9288,7 @@ function exCard(x,i,u){
       +'<button class="yv39-check" type="button">✓</button><input data-log="set" type="hidden" value="'+(j+1)+'"><input data-log="rir" type="hidden" value="'+(Number(x.rir)||0)+'"></div>';
   }
   var repeatBtn=old?'<button type="button" class="yv39-repeat-btn" onclick="yv39RepeatLast(this)">↻ Repetir igual que la última vez ('+old.weight+' kg × '+old.reps+')</button>':'';
-  return '<section class="yv39-card yv39-ex" data-exercise="'+esc(x.name)+'"><div class="yv39-ex-top"><div class="yv39-visual"><svg viewBox="0 0 64 64"><circle cx="32" cy="12" r="6"/><path d="M32 18v17M18 26l14 6 14-6M32 35 21 54M32 35l11 19M13 23l8 9M51 23l-8 9"/></svg></div><div class="yv39-ex-title"><div class="yv39-k">EJERCICIO '+(i+1)+'</div><h3>'+esc(x.name||"Ejercicio")+'</h3><div class="yv53-presc">'+n+' series × '+esc(x.reps||"—")+'<small>repeticiones</small></div><p class="yv39-muted">'+esc(x.method||"Tradicional")+' · descanso '+(Number(x.rest)||90)+'s · RIR '+(x.rir==null||x.rir===""?"—":esc(x.rir))+'</p>'+(x.notes?'<div class="yv53-note">'+esc(x.notes)+'</div>':'')+'<div class="yv39-prev">Anterior: '+(old?(old.weight+" kg × "+old.reps+" reps"):"sin registro previo")+'</div></div></div>'+repeatBtn+'<div class="yv39-table">'+rows+'</div><div class="yv39-actions"><button class="yv39-btn red" type="button" data-rest="'+(Number(x.rest)||90)+'">INICIAR DESCANSO</button><button class="yv39-btn" type="button" data-info="1">INSTRUCCIONES</button></div></section>';
+  return '<section class="yv39-card yv39-ex" data-exercise="'+esc(x.name)+'"><div class="yv39-ex-top"><div class="yv39-visual"><svg viewBox="0 0 64 64"><circle cx="32" cy="12" r="6"/><path d="M32 18v17M18 26l14 6 14-6M32 35 21 54M32 35l11 19M13 23l8 9M51 23l-8 9"/></svg></div><div class="yv39-ex-title"><div class="yv39-k">EJERCICIO '+(i+1)+'</div><h3>'+esc(x.name||"Ejercicio")+'</h3><div class="yv53-presc">'+n+' series × '+esc(String(x.reps||"—").replace(/\s*s$/,''))+'<small>'+(/\d\s*s$/.test(String(x.reps||''))?'segundos':'repeticiones')+'</small></div><p class="yv39-muted">'+esc(x.method||"Tradicional")+' · descanso '+(Number(x.rest)||90)+'s · RIR '+(x.rir==null||x.rir===""?"—":esc(x.rir))+'</p>'+(x.notes?'<div class="yv53-note">'+esc(x.notes)+'</div>':'')+'<div class="yv39-prev">Anterior: '+(old?(old.weight+" kg × "+old.reps+" reps"):"sin registro previo")+'</div></div></div>'+repeatBtn+'<div class="yv39-table">'+rows+'</div><div class="yv39-actions"><button class="yv39-btn red" type="button" data-rest="'+(Number(x.rest)||90)+'">INICIAR DESCANSO</button><button class="yv39-btn" type="button" data-info="1">INSTRUCCIONES</button></div></section>';
 }
 function renderRoutine(){
   var root=$("userWorkout"),page=$("userRoutine");if(!root||!page)return;
@@ -9738,7 +9741,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.11-ah';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.14-aj';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -10192,7 +10195,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 ========================================================= */
 (function(){
   "use strict";
-  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados","exerciseVideos"];
+  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados","exerciseVideos","dietCalc"];
   let dbNs=null, assetsNs=null, ready=false, suppress=false;
   const timers={};
 
@@ -11525,12 +11528,12 @@ if(baseCreate)window.yv68Create=async function(){
 };
 /* el coach solo ve a sus clientes en su lista y en los selectores */
 function coachOfU(u){const c=u&&u.coachId;return c==='laura'||c==='yayo'?c:null}
-function mine(u){return coachOfU(u)===activeCoach()}
+function mine(u){return window.YL_PANEL_UNICO||coachOfU(u)===activeCoach()}
 /* ---- DIRECTORIO DE CLIENTES (YL) ----
    Una sola lista general de clientes con filtros: Mis clientes (por defecto),
    Yayo, Laura, Sin coach asignado y Todos. Cada tarjeta muestra de quién es.
    El dueño viene del dato del cliente (coachId), no de lo que se oculta en pantalla. */
-window.ylDirFiltro=window.ylDirFiltro||'mias';
+window.ylDirFiltro=window.ylDirFiltro||(window.YL_PANEL_UNICO?'todos':'mias');
 const DIR_COACHES=['yayo','laura'];
 function dirCoachActual(){return (sessionStorage.getItem('yayo_active_coach')||localStorage.getItem('yayo_active_coach')||'yayo').toLowerCase()==='laura'?'laura':'yayo'}
 function dirVisible(u){
@@ -11990,7 +11993,7 @@ const activeCoach=()=>norm(sessionStorage.getItem('yayo_active_coach'))==='laura
 const ownerOf=u=>u&&u.coachId==='laura'?'laura':'yayo';
 const isClient=u=>u&&!COACHES.includes(norm(u.name));
 function coachOfU(u){const c=u&&u.coachId;return c==='laura'||c==='yayo'?c:null}
-function clients(){return (state.users||[]).filter(u=>isClient(u)&&coachOfU(u)===activeCoach())}
+function clients(){return (state.users||[]).filter(u=>isClient(u)&&(window.YL_PANEL_UNICO||coachOfU(u)===activeCoach()))}
 function byId(id){return (state.users||[]).find(u=>String(u.id)===String(id))}
 function byName(n){return (state.users||[]).find(u=>norm(u.name)===norm(n))}
 window.YV74={clients,byId,byName,esc,norm,toast,save,role};
@@ -12006,7 +12009,7 @@ window.yv74MealKcal=function(foods,totalG){
 };
 
 /* ---------- USUARIO SELECCIONADO (coach) ---------- */
-function selected(){const u=byId(state.selectedUserId);return u&&isClient(u)&&coachOfU(u)===activeCoach()?u:null}
+function selected(){const u=byId(state.selectedUserId);return u&&isClient(u)&&(window.YL_PANEL_UNICO||coachOfU(u)===activeCoach())?u:null}
 function setSelected(id,silent){
   const u=byId(id);if(!u||!isClient(u))return;
   state.selectedUserId=u.id;localStorage.setItem('yayo_last_selected_user',String(u.id));
@@ -12021,6 +12024,7 @@ function normalizeSelects(){
   const mine=clients();const ok=new Set(mine.flatMap(u=>[String(u.id),norm(u.name)]));
   document.querySelectorAll('#app select, #modal select, .yv58-signup-overlay select, .yv72-focus select').forEach(sel=>{
     if(!/user/i.test(sel.id||''))return;
+    if(/goal|objetiv|sex|type|tipo|level|nivel|activ/i.test(sel.id||''))return; /* QA 14-oct: el objetivo del nuevo usuario no es un selector de clientes */
     [...sel.options].forEach(o=>{const v=String(o.value);if(!v)return;const t=norm(o.textContent);if(!(ok.has(v)||ok.has(norm(v)))||COACHES.includes(t))o.remove()});
     if(!sel.dataset.yv74){sel.dataset.yv74='1';
       sel.addEventListener('change',()=>{const v=sel.value;const u=byId(v)||byName(v);if(u&&isClient(u)&&String(state.selectedUserId)!==String(u.id)){state.selectedUserId=u.id;localStorage.setItem('yayo_last_selected_user',String(u.id));paintCtx()}});
@@ -12037,7 +12041,7 @@ function normalizeSelects(){
   // filas de Progresiones de coaches o de otro coach
   document.querySelectorAll('#coachProgress [onclick*="v25OpenProgress("], #coachProgress [onclick*="v25AddProgress("]').forEach(b=>{
     const m=(b.getAttribute('onclick')||'').match(/v25(?:Open|Add)Progress\('([^']*)'\)/);if(!m)return;
-    const u=byName(m[1]);const bad=COACHES.includes(norm(m[1]))||(u&&coachOfU(u)!==activeCoach());
+    const u=byName(m[1]);const bad=COACHES.includes(norm(m[1]))||(!window.YL_PANEL_UNICO&&u&&coachOfU(u)!==activeCoach());
     const row=b.closest('.list-item,.v25-row,.v10-progress-row,article,li')||b.parentElement;if(row)row.style.display=bad?'none':'';
   });
 }
@@ -12271,12 +12275,12 @@ function explainExercises(){
   document.querySelectorAll('#userRoutine .yv39-ex').forEach(card=>{
     if(card.querySelector('.yv74-how'))return;
     const x=(d.exercises||[]).find(e=>norm(e.name)===norm(card.dataset.exercise))||{};
-    const reps=String(x.reps||'').replace('-',' a ');const rest=Number(x.rest)||90;
+    const seg=/\d\s*s$/.test(String(x.reps||''));const reps=String(x.reps||'').replace(/\s*s$/,'').replace('-',' a ');const rest=Number(x.rest)||90;
     const restTxt=rest>=60?(rest%60?Math.floor(rest/60)+' min '+rest%60+' s':rest/60+' min'):rest+' s';
     const lines=[
       x.goal?`<b>Objetivo:</b> ${esc(x.goal)}`:'',
-      `<b>Haz</b> ${esc(x.sets||3)} series de ${esc(reps||'—')} repeticiones.`,
-      x.rir!=null&&x.rir!==''?`<b>Esfuerzo (RIR ${esc(x.rir)}):</b> termina cada serie sintiendo que podrías hacer ${esc(x.rir)} repetición${Number(x.rir)===1?'':'es'} más.`:'',
+      `<b>Haz</b> ${esc(x.sets||3)} series de ${esc(reps||'—')} ${seg?'segundos':'repeticiones'}.`,
+      x.rir!=null&&x.rir!==''?`<b>Esfuerzo (RIR ${esc(x.rir)}):</b> termina cada serie sintiendo que podrías hacer ${esc(x.rir)} repetición${String(x.rir)==='1'?'':'es'} más.`:'',
       `<b>Descansa</b> ${restTxt} entre series.`,
       x.method&&x.method!=='Tradicional'?`<b>Método:</b> ${esc(x.method)}.`:'<b>Método:</b> tradicional (series normales).'
     ].filter(Boolean);
@@ -12326,7 +12330,9 @@ function calcHTML(){return `<section id="yv74Calc" class="yv74-calc">
     <label class="yv74-fld" id="yc_bfw"><span>% grasa corporal</span><input id="yc_bf" type="number" step=".1" min="3" max="60" placeholder="Ej: 15"></label>
     <label class="yv74-fld"><span>Actividad</span><select id="yc_act"><option value="1.2">Sedentario · 1,2</option><option value="1.375">Ligera (1-3 días) · 1,375</option><option value="1.55" selected>Moderada (3-5 días) · 1,55</option><option value="1.725">Alta (6-7 días) · 1,725</option><option value="1.9">Muy alta / doble turno · 1,9</option></select></label>
     <label class="yv74-fld"><span>Objetivo</span><select id="yc_goal"><option value="rec">Recomposición (GET)</option><option value="vol">Volumen (superávit)</option><option value="def">Definición (déficit)</option></select></label>
-    <label class="yv74-fld" id="yc_adjw"><span id="yc_adjl">Ajuste (kcal)</span><input id="yc_adj" type="number" min="300" max="500" step="25" value="300"></label>
+    <label class="yv74-fld" id="yc_adjw"><span id="yc_adjl">Ajuste (kcal)</span><input id="yc_adj" type="number" min="0" max="1500" step="25" value="300"></label>
+    <label class="yv74-fld"><span>Mantenimiento propio (kcal) · opcional</span><input id="yc_tdee_m" type="number" min="800" max="8000" step="10" placeholder="Usar el calculado"></label>
+    <label class="yv74-fld"><span>Calorías objetivo (kcal) · opcional</span><input id="yc_target_m" type="number" min="800" max="8000" step="10" placeholder="Usar el calculado"></label>
     <label class="yv74-fld"><span id="yc_pl">Proteína (g/kg)</span><input id="yc_p" type="number" step=".1" value="2.2"></label>
     <label class="yv74-fld"><span>Grasa (g/kg)</span><input id="yc_f" type="number" step=".1" min=".5" max="1.5" value=".9"></label>
   </div>
@@ -12340,26 +12346,30 @@ function calc(){
   const f=calcF,sex=g('yc_sex').value,age=+g('yc_age').value,w=+g('yc_w').value,h=+g('yc_h').value,bf=g('yc_bf').value===''?null:+g('yc_bf').value,act=+g('yc_act').value,goal=g('yc_goal').value;
   g('yv74Eq').innerHTML=`<b>${FORM[f].name}</b> · ${FORM[f].desc}<br><code>${FORM[f].eq}</code>`;
   g('yc_bfw').classList.toggle('need',f==='katch');
-  g('yc_adjw').style.display=goal==='rec'?'none':'';g('yc_adjl').textContent=goal==='vol'?'Superávit (300-500 kcal)':'Déficit (300-500 kcal)';
+  const tm=g('yc_tdee_m')&&g('yc_tdee_m').value!==''?+g('yc_tdee_m').value:null,xm=g('yc_target_m')&&g('yc_target_m').value!==''?+g('yc_target_m').value:null;
+  g('yc_adjw').style.display=(goal==='rec'||xm)?'none':'';g('yc_adjl').textContent=goal==='vol'?'Superávit (kcal)':'Déficit (kcal)';
   const [pmin,pmax]=RANGES[goal];g('yc_pl').textContent=`Proteína (${String(pmin).replace('.',',')}–${String(pmax).replace('.',',')} g/kg)`;
   const pk=+g('yc_p').value,fk=+g('yc_f').value,adj=+g('yc_adj').value;
   const errs=[];
   if(!(w>=30&&w<=250))errs.push('Peso entre 30 y 250 kg.');if(!(h>=120&&h<=230))errs.push('Estatura entre 120 y 230 cm.');if(!(age>=14&&age<=90))errs.push('Edad entre 14 y 90 años.');
   if(f==='katch'&&!(bf>=3&&bf<=60))errs.push('Katch-McArdle necesita el % de grasa corporal (3-60).');
-  if(goal!=='rec'&&!(adj>=300&&adj<=500))errs.push('El ajuste debe estar entre 300 y 500 kcal.');
+  if(goal!=='rec'&&!xm&&!(adj>=0&&adj<=1500))errs.push('El ajuste debe estar entre 0 y 1500 kcal.');
+  if(tm!=null&&!(tm>=800&&tm<=8000))errs.push('El mantenimiento propio debe estar entre 800 y 8000 kcal.');
+  if(xm!=null&&!(xm>=800&&xm<=8000))errs.push('Las calorías objetivo deben estar entre 800 y 8000 kcal.');
   if(!(pk>=pmin&&pk<=pmax))errs.push(`Proteína recomendada para este objetivo: ${pmin}–${pmax} g/kg.`);
   const e=g('yc_err');e.style.display=errs.length?'block':'none';e.innerHTML=errs.join('<br>');
   if(errs.some(x=>!/Proteína/.test(x))){g('yc_res').innerHTML='';return}
   let bmr;if(f==='katch')bmr=370+21.6*(w*(1-bf/100));else if(f==='mifflin')bmr=10*w+6.25*h-5*age+(sex==='M'?5:-161);else bmr=sex==='M'?88.362+13.397*w+4.799*h-5.677*age:447.593+9.247*w+3.098*h-4.330*age;
-  const tdee=bmr*act;const target=goal==='vol'?tdee+adj:goal==='def'?tdee-adj:tdee;
+  const tdee=tm||bmr*act;const target=xm||(goal==='vol'?tdee+adj:goal==='def'?tdee-adj:tdee);
   const P=pk*w,F=fk*w,C=Math.max(0,(target-P*4-F*9)/4);
   const R=v=>Math.round(v);
-  g('yc_res').innerHTML=`<div><small>ECUACIÓN</small><b>${FORM[f].name}</b></div><div><small>METABOLISMO BASAL</small><b>${R(bmr)} kcal</b></div><div><small>FACTOR DE ACTIVIDAD</small><b>× ${String(act).replace('.',',')}</b></div><div><small>GET</small><b>${R(tdee)} kcal</b></div><div class="hl"><small>OBJETIVO</small><b>${R(target)} kcal</b></div><div><small>PROTEÍNA</small><b>${R(P)} g</b></div><div><small>GRASAS</small><b>${R(F)} g</b></div><div><small>CARBOHIDRATOS</small><b>${R(C)} g</b></div>`;
+  g('yc_res').innerHTML=`<div><small>ECUACIÓN</small><b>${FORM[f].name}</b></div><div><small>METABOLISMO BASAL</small><b>${R(bmr)} kcal</b></div><div><small>FACTOR DE ACTIVIDAD</small><b>× ${String(act).replace('.',',')}</b></div><div><small>GET${tm?' · MANUAL':''}</small><b>${R(tdee)} kcal</b></div><div class="hl"><small>OBJETIVO${xm?' · MANUAL':''}</small><b>${R(target)} kcal</b></div><div><small>PROTEÍNA</small><b>${R(P)} g</b></div><div><small>GRASAS</small><b>${R(F)} g</b></div><div><small>CARBOHIDRATOS</small><b>${R(C)} g</b></div>`;
   try{v9DietTarget={bmr:R(bmr),tdee:R(tdee),calories:R(target),protein:R(P),carbs:R(C),fat:R(F),goal,weight:w,formula:FORM[f].name}}catch(x){}
   document.querySelector('#v22Meals')?.dispatchEvent(new Event('input',{bubbles:true}));
   const any=document.querySelector('#v22Meals input');if(any)any.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function injectCalc(){
+  if(window.ylCalcInject){window.ylCalcInject();return}
   const pane=$('v22DietPane');if(!pane||$('yv74Calc'))return;
   pane.insertAdjacentHTML('afterbegin',calcHTML());
   const c=$('yv74Calc');
@@ -14307,4 +14317,783 @@ window.ylRacha=function(sesiones){
   let t=null;new MutationObserver(()=>{clearTimeout(t);t=setTimeout(etiquetar,60)}).observe(document.documentElement,{childList:true,subtree:true});
   document.addEventListener('DOMContentLoaded',etiquetar);
 })();
-</script></body></html>
+</script><style id="yl-yayo-2026-10-14-css">
+.yl-dash-alcance[hidden]{display:none!important}
+.yl-ac{position:absolute;z-index:2147483000;background:#141416;border:1px solid #3a3a40;border-radius:12px;box-shadow:0 14px 40px #000b;padding:4px;max-height:300px;overflow:auto}
+.yl-ac button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#f2f2f2;padding:10px 12px;border-radius:9px;font:inherit;font-size:14px;cursor:pointer;min-height:44px}
+.yl-ac button small{display:block;color:#8e8e93;font-size:11px;margin-top:2px}
+.yl-ac button:hover,.yl-ac button.on{background:#2a2a2f}
+.yl-ac button.on{outline:2px solid #ff2948;outline-offset:-2px}
+.yv68-card{max-height:92vh;overflow:auto}
+.yl-hc{margin:6px 0 12px;border:1px solid #303036;border-radius:14px;padding:4px 12px 10px;background:#121214}
+.yl-hc>summary{cursor:pointer;font-weight:800;font-size:13px;padding:10px 0;list-style:none}
+.yl-hc>summary::after{content:' ▾';color:#8e8e93}
+.yl-hc h5{font-size:11px;letter-spacing:.06em;color:#8e8e93;margin:12px 0 6px;text-transform:uppercase}
+.yl-hc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.yl-hc-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#c7c7cc}
+.yl-hc-grid label.full{grid-column:1/-1}
+.yl-hc-grid input,.yl-hc-grid select,.yl-hc-grid textarea{width:100%;box-sizing:border-box;background:#0d0d0f;border:1px solid #3a3a40;color:#fff;border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:44px}
+.yl-hc-grid textarea{min-height:64px;resize:vertical}
+@media(max-width:560px){.yl-hc-grid{grid-template-columns:1fr}}
+.yl-exp-edit{margin-left:auto}
+.yl-auto-days{display:grid;gap:4px;margin:8px 0 10px;font-size:12px;color:#c7c7cc}
+.yl-auto-days b{color:#fff}
+</style>
+<script id="yl-yayo-2026-10-14">
+/* =====================================================================
+   QA 14-oct · Pedidos de Yayo
+   1) Buscador con sugerencias propio (alimentos y ejercicios): funciona
+      igual en computador, iPhone y Android; al elegir, carga los datos.
+   ===================================================================== */
+(function(){
+"use strict";
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const N=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const $=id=>document.getElementById(id);
+const toast=m=>{try{(window.gyfaToast||window.toast||console.log)(m)}catch(e){}};
+const save=()=>{try{window.saveState&&window.saveState()}catch(e){console.error(e)}};
+
+/* ---------------- 1. BUSCADOR CON SUGERENCIAS ---------------- */
+let box=null,cur=null,items=[],idx=-1;
+function opciones(inp){const id=inp.dataset.ylList||inp.getAttribute('list');const dl=id&&$(id);if(!dl)return[];return [...dl.options].map(o=>({v:o.value,s:(o.textContent&&o.textContent.trim()!==o.value?o.textContent.trim():(o.label&&o.label!==o.value?o.label:''))})).filter(o=>o.v)}
+function cerrar(){if(box){box.remove();box=null}items=[];idx=-1;cur=null}
+function elegir(inp,v){inp.value=v;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));cerrar()}
+function ubicar(){if(!box||!cur)return;const r=cur.getBoundingClientRect();if(!r.width){cerrar();return}box.style.left=(r.left+window.scrollX)+'px';box.style.top=(r.bottom+window.scrollY+4)+'px';box.style.width=Math.max(r.width,260)+'px'}
+function buscar(inp){
+  const q=N(inp.value);if(!q){cerrar();return}
+  const exact=[],ini=[],cont=[];const ws=q.split(' ');
+  opciones(inp).forEach(o=>{const n=N(o.v);if(n===q)exact.push(o);else if(n.startsWith(q))ini.push(o);else if(ws.every(w=>n.includes(w)))cont.push(o)});
+  items=exact.concat(ini,cont).slice(0,8);
+  if(!items.length||(items.length===1&&exact.length===1&&exact[0].v===inp.value)){cerrar();return}
+  if(!box){box=document.createElement('div');box.className='yl-ac';box.setAttribute('role','listbox');box.setAttribute('aria-label','Sugerencias');
+    box.addEventListener('pointerdown',e=>e.preventDefault());box.addEventListener('mousedown',e=>e.preventDefault());
+    box.addEventListener('click',e=>{const b=e.target.closest('button[data-i]');if(b&&cur)elegir(cur,items[+b.dataset.i].v)});
+    document.body.appendChild(box)}
+  cur=inp;idx=-1;
+  box.innerHTML=items.map((o,i)=>`<button type="button" role="option" data-i="${i}"><b>${esc(o.v)}</b>${o.s?`<small>${esc(o.s)}</small>`:''}</button>`).join('');
+  ubicar();
+}
+function resolver(inp){ /* al salir: si lo escrito es el mismo nombre con otras mayúsculas, tildes o espacios, se usa el nombre exacto */
+  const q=N(inp.value);if(!q)return;const m=opciones(inp).find(o=>N(o.v)===q);
+  if(m&&m.v!==inp.value)elegir(inp,m.v);
+}
+/* el atributo list se conserva (otras partes leen input[list]); solo apunta a una lista vacía para que el navegador no muestre la suya */
+document.addEventListener('focusin',e=>{const t=e.target;if(!(t instanceof HTMLInputElement))return;const l=t.getAttribute('list');if(l&&l!=='yl-sin-lista'){t.dataset.ylList=l;t.setAttribute('list','yl-sin-lista');t.setAttribute('autocomplete','off');t.setAttribute('aria-autocomplete','list')}});
+document.addEventListener('input',e=>{const t=e.target;if(t instanceof HTMLInputElement&&t.dataset.ylList&&e.isTrusted!==false)buscar(t)},true);
+document.addEventListener('keydown',e=>{
+  if(!box||e.target!==cur)return;const bs=[...box.querySelectorAll('button')];
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();idx=(idx+(e.key==='ArrowDown'?1:-1)+bs.length)%bs.length;bs.forEach((b,i)=>b.classList.toggle('on',i===idx));bs[idx].scrollIntoView({block:'nearest'})}
+  else if(e.key==='Enter'&&idx>=0){e.preventDefault();elegir(cur,items[idx].v)}
+  else if(e.key==='Escape'){cerrar()}
+},true);
+document.addEventListener('focusout',e=>{const t=e.target;if(t instanceof HTMLInputElement&&t.dataset.ylList){setTimeout(()=>{if(cur===t||!box)cerrar();resolver(t)},120)}});
+window.addEventListener('scroll',ubicar,true);window.addEventListener('resize',ubicar);
+window.ylAutocompleteClose=cerrar;
+
+})();
+</script>
+<style id="yl-elite-2026-10-14-css">
+/* ---------- objetivo y perfil en el alta ---------- */
+.ylo-perfil{font-size:12px;color:#c7c7cc;background:#151517;border:1px solid #303036;border-radius:12px;padding:10px 12px;margin:2px 0 12px}
+.ylo-perfil b{color:#fff}
+/* ---------- ficha inteligente ---------- */
+.ylf{border:1px solid #303036;border-radius:16px;background:#111113;padding:12px;margin:8px 0 12px}
+.ylf-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ylf-tabs{display:flex;gap:6px;flex:1;min-width:0}
+.ylf-tabs button{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ylf-tabs button,.ylf-btn{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid #3a3a40;background:#18181b;color:#fff;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.ylf-tabs button[aria-selected="true"]{background:var(--brand,#e50914);border-color:var(--brand,#e50914)}
+.ylf-btn.pri{background:var(--brand,#e50914);border-color:var(--brand,#e50914)}
+.ylf-btn:focus-visible,.ylf-tabs button:focus-visible,.ylf-tri button:focus-visible,.ylf-chip:focus-visible{outline:3px solid #ffb4b4;outline-offset:2px}
+.ylf-status{font-size:12px;color:#8e8e93;margin:8px 2px 0;min-height:16px}
+.ylf-status.ok{color:#7ddc8a}.ylf-status.err{color:#ff8c96}
+.ylf-pane{margin-top:10px}
+.ylf-q{border-top:1px solid #232327;padding:10px 0}
+.ylf-q:first-child{border-top:0}
+.ylf-q>label,.ylf-q>.ylf-l{display:block;font-size:13px;font-weight:700;color:#f2f2f2;margin-bottom:6px}
+.ylf-tri{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ylf-tri button{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #3a3a40;background:transparent;color:#e5e5ea;font:inherit;font-size:13px;cursor:pointer}
+.ylf-tri button[aria-pressed="true"]{background:#2b2b31;border-color:#fff;color:#fff;font-weight:800}
+.ylf-tri .sin{font-size:12px;color:#8e8e93;margin-left:4px}
+.ylf input,.ylf select,.ylf textarea{width:100%;box-sizing:border-box;background:#0d0d0f;border:1px solid #3a3a40;color:#fff;border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:44px}
+.ylf textarea{min-height:70px;resize:vertical}
+.ylf-det{margin-top:8px}
+.ylf-g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ylf-g2 label{font-size:12px;color:#c7c7cc;display:flex;flex-direction:column;gap:4px}
+.ylf-err{color:#ff8c96;font-size:12px;margin-top:4px}
+.ylf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.ylf-chip{min-height:38px;padding:0 12px;border-radius:999px;border:1px solid #3a3a40;background:transparent;color:#e5e5ea;font:inherit;font-size:13px;cursor:pointer}
+.ylf-chip[aria-pressed="true"]{background:#1f3a24;border-color:#7ddc8a;color:#fff}
+.ylf-chips.evita .ylf-chip[aria-pressed="true"]{background:#3a1f22;border-color:#ff8c96}
+.ylf-add{display:flex;gap:6px;margin-top:6px}
+.ylf-add input{flex:1}
+.ylf-note{font-size:12px;color:#8e8e93;margin:6px 0 0}
+.ylf-warn{font-size:12px;color:#ffd27a;background:#2a2410;border:1px solid #5c4a14;border-radius:10px;padding:8px 10px;margin-top:8px}
+.ylf-paste{margin-top:12px;border-top:1px dashed #3a3a40;padding-top:10px}
+.ylf-paste summary{cursor:pointer;font-weight:700;font-size:13px}
+.ylf-prop{margin-top:8px;display:grid;gap:6px}
+.ylf-prop label{display:flex;gap:8px;align-items:flex-start;font-size:13px;background:#18181b;border:1px solid #303036;border-radius:10px;padding:8px}
+.ylf-prop input[type=checkbox]{width:20px;min-height:20px;margin-top:2px}
+.ylf-prop input[type=text]{min-height:36px;padding:6px 8px}
+.ylf-sum{margin-top:10px;background:#141416;border:1px solid #303036;border-radius:14px;padding:12px;font-size:13px;line-height:1.5}
+.ylf-sum h5{margin:10px 0 4px;font-size:11px;letter-spacing:.06em;color:#8e8e93;text-transform:uppercase}
+.ylf-sum .alert{color:#ffb4b4}
+.ylf-sum .alert.alta{color:#fff;background:#4a1016;border:1px solid #ff4d5e;border-radius:10px;padding:8px}
+.ylf-sum ul{margin:4px 0 0 18px;padding:0}
+.ylf-hist{font-size:12px;color:#8e8e93;margin-top:8px}
+@media(max-width:560px){.ylf-g2{grid-template-columns:1fr}.ylf-tabs{flex:1 1 100%}.ylf-tabs button{padding:0 8px}.ylf-top>.ylf-btn{width:100%}}
+/* ---------- calculadora ---------- */
+#yv74Calc.ylc .ylc-org{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:#c7c7cc;margin:6px 0 10px}
+#yv74Calc.ylc .ylc-org b{color:#fff}
+.ylc-badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;border-radius:999px;padding:3px 8px;background:#26262a;color:#c7c7cc}
+.ylc-badge.man{background:#3a2a10;color:#ffd27a}
+.ylc-modo{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.ylc-modo label{display:flex;gap:8px;align-items:center;min-height:44px;padding:0 12px;border:1px solid #3a3a40;border-radius:12px;font-size:13px;cursor:pointer}
+.ylc-modo input{width:18px;height:18px}
+.ylc-res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.ylc-res .r{background:#141416;border:1px solid #303036;border-radius:12px;padding:10px}
+.ylc-res .r.hl{border-color:var(--brand,#e50914)}
+.ylc-res small{display:block;font-size:10.5px;letter-spacing:.05em;color:#8e8e93;font-weight:800}
+.ylc-res input{margin:6px 0 4px;font-size:18px;font-weight:800;padding:6px 8px;min-height:40px}
+.ylc-res .u{font-size:11px;color:#8e8e93}
+.ylc-res button{background:none;border:0;color:#8ab4ff;font:inherit;font-size:11.5px;cursor:pointer;padding:4px 0;text-decoration:underline}
+.ylc-line{font-size:13px;color:#e5e5ea;margin:6px 0}
+.ylc-aviso{font-size:12.5px;background:#2a2410;border:1px solid #5c4a14;color:#ffd27a;border-radius:12px;padding:10px;margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ylc-aviso .ylf-btn{min-height:38px;font-size:12px}
+@media(max-width:700px){.ylc-res{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* ---------- rutinas automáticas ---------- */
+.ylr-tool{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.ylr-tool label{font-size:11px;color:#8e8e93;display:flex;flex-direction:column;gap:4px;font-weight:700;letter-spacing:.04em}
+.ylr-tool select,.ylr-tool input{min-height:44px;background:#0d0d0f;border:1px solid #3a3a40;color:#fff;border-radius:10px;padding:0 10px;font:inherit;font-size:14px}
+.ylr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.ylr-card{background:#141416;border:1px solid #303036;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.ylr-card h4{margin:2px 0;font-size:15px}
+.ylr-card .note{font-size:12px;color:#ffd27a}
+.ylr-card ol{margin:0;padding-left:18px;font-size:12.5px;color:#d1d1d6;line-height:1.5}
+.ylr-card ol span{color:#8e8e93}
+.ylr-card .btn{margin-top:auto;min-height:44px}
+@media(max-width:700px){.ylr-tool{grid-template-columns:1fr 1fr}}
+</style>
+<script id="yl-elite-2026-10-14">
+/* =====================================================================
+   QA 14-oct · Documentos SOLUCIONES, HISTORIA CLÍNICA y RUTINAS
+   A. Objetivo principal con identificadores estables y perfil automático.
+   B. Ficha inteligente del usuario (Salud · Deporte · Nutrición).
+   C. Expediente como fuente única y editable.
+   D. Calculadora de dieta con modo automático o manual y resultados editables.
+   E. Biblioteca de 150 rutinas por nivel (documento RUTINAS).
+   ===================================================================== */
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const N=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const clone=o=>JSON.parse(JSON.stringify(o==null?null:o));
+const toast=m=>{try{(window.gyfaToast||window.toast||console.log)(m)}catch(e){}};
+const users=()=>(window.state&&state.users)||(typeof state!=='undefined'?state.users:[])||[];
+const byId=id=>(state.users||[]).find(u=>String(u.id)===String(id));
+const coachActual=()=>{const c=sessionStorage.getItem('yayo_active_coach')||'';return c?c.charAt(0).toUpperCase()+c.slice(1):'Coach'};
+const esCoach=()=>(sessionStorage.getItem('yayo_active_role')||'')==='coach'||(typeof currentRole!=='undefined'&&currentRole==='coach');
+const fmtF=iso=>{try{return new Date(iso).toLocaleString('es-CO',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return iso}};
+
+/* ---------- estado de guardado real (se apoya en la sincronización existente) ---------- */
+const oyentes=new Set();
+const oStatus=window.yv71Status;
+window.yv71Status=function(kind,retry){try{oyentes.forEach(f=>{try{f(kind,retry)}catch(e){}})}catch(e){}return oStatus?oStatus.apply(this,arguments):undefined};
+function guardar(){try{window.saveState&&window.saveState()}catch(e){console.error(e);return false}return true}
+
+/* =====================================================================
+   A. OBJETIVO PRINCIPAL
+   ===================================================================== */
+const OBJ=[
+ {id:'perdida_grasa',label:'Pérdida de grasa',calc:'deficit'},
+ {id:'masa_muscular',label:'Aumento de masa muscular',calc:'superavit'},
+ {id:'acondicionamiento',label:'Acondicionamiento físico',calc:'mantener'},
+ {id:'fisiculturismo',label:'Preparación fisiculturismo',calc:'mantener'}
+];
+const objDef=id=>OBJ.find(o=>o.id===id)||null;
+function objetivoDe(u){return u&&objDef(u.objetivo)?u.objetivo:null}
+function objetivoTexto(u){const o=objDef(u&&u.objetivo);return o?o.label:'Pendiente de asignación'}
+/* cambia objetivo y perfil; nunca borra archivos ni planes */
+function aplicarObjetivo(u,id,opt){
+  opt=opt||{};const nuevo=objDef(id);if(!u||!nuevo)return false;
+  const prev=objetivoDe(u);if(prev===id&&!!u.bodybuilder===(id==='fisiculturismo'))return true;
+  const aBB=id==='fisiculturismo';
+  if(opt.confirmar&&aBB!==!!u.bodybuilder){
+    const nom=u.fullName||u.name;
+    const msg=aBB?`El perfil de ${nom} pasará a Fisiculturista (protocolo y archivos propios). No se borra ningún plan.`:
+      `El perfil de ${nom} volverá a General. Los archivos y datos de fisiculturismo se conservan para una futura reactivación. No se borra ningún plan.`;
+    if(!confirm(msg+'\n\n¿Continuar?'))return false;
+  }
+  (u.objetivoHistorial=u.objetivoHistorial||[]).push({de:prev,a:id,fecha:new Date().toISOString(),por:coachActual()});
+  u.objetivo=id;u.goal=nuevo.label;u.bodybuilder=aBB;u.updatedAt=new Date().toISOString();
+  return true;
+}
+window.ylObjetivos=OBJ;window.ylObjetivoDe=objetivoDe;window.ylObjetivoTexto=objetivoTexto;window.ylAplicarObjetivo=aplicarObjetivo;
+
+/* =====================================================================
+   B. FICHA INTELIGENTE
+   ===================================================================== */
+const SALUD=[
+ ['enfermedades','Enfermedades',['no','si'],'¿Cuáles?'],
+ ['alarma','Síntomas de alarma',['no','si'],'¿Cuáles? (dolor en el pecho, mareo, desmayo, falta de aire…)'],
+ ['lesiones','Lesiones o limitaciones',['no','si'],'¿Qué zona?'],
+ ['cirugias','Cirugías',['no','si'],'¿Cuáles?'],
+ ['medicamentos','Medicamentos',['no','si'],'¿Cuáles?'],
+ ['restricciones','Restricciones médicas',['no','si','nosabe'],'¿Cuáles?'],
+ ['embarazo','Embarazo o posparto',['no','si'],'Detalle (semanas o meses de posparto)']
+];
+const RLAB={no:'No',si:'Sí',nosabe:'No sabe',ninguna:'Ninguna',cuales:'Sí, cuáles'};
+const EXP=[['inicial','Inicial'],['media','Media'],['alta','Alta']];
+const ACTV=[['sedentario','Sedentario'],['activo','Activo'],['entrena','Entrena']];
+const ALIM=['Pollo','Res','Cerdo','Pescado','Atún','Huevo','Arroz','Papa','Pasta','Avena','Pan','Arepa','Plátano','Yuca','Frijoles','Lentejas','Leche','Yogur','Queso','Aguacate','Frutos secos','Frutas','Verduras'];
+const PERS=[ /* datos del expediente (nivel superior del usuario) */
+ ['fullName','Nombre completo','text'],
+ ['age','Edad','number',10,100,'años'],
+ ['sex','Sexo','sex'],
+ ['weight','Peso','number',30,250,'kg'],
+ ['height','Estatura','number',120,230,'cm'],
+ ['bodyFat','% grasa corporal (opcional)','number',3,60,'%']
+];
+function fichaVacia(){return {salud:{},deporte:{},nutricion:{favoritos:[],evita:[],alergias:{},comidas:{},habitos:{}}}}
+function datosDe(u){
+  const f=clone(u&&u.ficha)||fichaVacia();
+  f.salud=f.salud||{};f.deporte=f.deporte||{};f.nutricion=Object.assign({favoritos:[],evita:[],alergias:{},comidas:{},habitos:{}},f.nutricion||{});
+  const p={};PERS.forEach(([k])=>{const v=u?u[k]:undefined;p[k]=(v===0||v==null)?'':v});
+  p.objetivo=objetivoDe(u)||'';
+  return {ficha:f,pers:p};
+}
+const getK=(o,path)=>path.split('.').reduce((a,k)=>a==null?undefined:a[k],o);
+function setK(o,path,v){const ks=path.split('.');let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=='object')a[k]={};a=a[k]});a[ks.at(-1)]=v}
+const sinInfo='<span class="sin">Sin información</span>';
+function tri(path,ops,val){
+  return `<div class="ylf-tri" role="group">${ops.map(o=>`<button type="button" data-tri="${path}" data-v="${o}" aria-pressed="${val===o}">${RLAB[o]}</button>`).join('')}${val?`<button type="button" data-tri="${path}" data-v="" title="Volver a Sin información" aria-label="Borrar respuesta">×</button>`:sinInfo}</div>`;
+}
+function htmlSalud(D){
+  const sx=D.pers.sex;
+  return SALUD.filter(([k])=>k!=='embarazo'||sx==='Mujer').map(([k,l,ops,ph])=>{const a=D.ficha.salud[k]||{};
+    return `<div class="ylf-q"><span class="ylf-l" id="ylf-l-${k}">${l}</span>${tri('salud.'+k+'.r',ops,a.r)}
+      ${a.r==='si'?`<div class="ylf-det"><input data-k="salud.${k}.d" aria-labelledby="ylf-l-${k}" placeholder="${esc(ph)}" value="${esc(a.d||'')}"></div>`:''}
+      ${k==='alarma'&&a.r==='si'?'<div class="ylf-warn">Síntoma de alarma registrado: requiere revisión según su gravedad antes de avanzar. Esta ficha no autoriza a entrenar.</div>':''}</div>`}).join('')+
+    `<p class="ylf-note">Tamizaje propio del coach; no es el PAR-Q+ oficial. Un campo vacío no equivale a ausencia de riesgo ni a autorización para entrenar.</p>`;
+}
+function htmlDeporte(D,modo){
+  const p=D.pers,d=D.ficha.deporte;
+  const campo=([k,l,t,mi,ma,u])=>{
+    if(modo==='alta'&&(k==='fullName'||k==='age'))return '';
+    const id='ylf-p-'+k;
+    if(t==='sex')return `<label for="${id}">${l}<select id="${id}" data-p="sex"><option value="">Sin información</option><option ${p.sex==='Mujer'?'selected':''}>Mujer</option><option ${p.sex==='Hombre'?'selected':''}>Hombre</option></select></label>`;
+    return `<label for="${id}">${l}${u?` (${u})`:''}<input id="${id}" data-p="${k}" type="${t==='number'?'number':'text'}" ${t==='number'?`inputmode="decimal" min="${mi}" max="${ma}" step="any"`:''} value="${esc(p[k])}" placeholder="Sin registrar"><span class="ylf-err" data-err="${k}"></span></label>`;
+  };
+  const objSel=modo==='alta'?'<p class="ylf-note">Nombre, edad y objetivo principal: arriba, en el formulario de alta.</p>':
+    `<div class="ylf-q"><label for="ylf-p-objetivo">Objetivo principal</label><select id="ylf-p-objetivo" data-p="objetivo"><option value="">Pendiente de asignación</option>${OBJ.map(o=>`<option value="${o.id}" ${p.objetivo===o.id?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
+  return `<div class="ylf-q"><span class="ylf-l">Datos</span><div class="ylf-g2">${PERS.map(campo).join('')}</div></div>${objSel}
+    <div class="ylf-q"><span class="ylf-l" id="ylf-l-exp">Experiencia</span><div class="ylf-tri" role="group" aria-labelledby="ylf-l-exp">${EXP.map(([v,l])=>`<button type="button" data-set="deporte.experiencia" data-v="${v}" aria-pressed="${d.experiencia===v}">${l}</button>`).join('')}${d.experiencia?'<button type="button" data-set="deporte.experiencia" data-v="" aria-label="Borrar respuesta">×</button>':sinInfo}</div></div>
+    <div class="ylf-q"><span class="ylf-l" id="ylf-l-act">Actividad actual</span><div class="ylf-tri" role="group" aria-labelledby="ylf-l-act">${ACTV.map(([v,l])=>`<button type="button" data-set="deporte.actividad" data-v="${v}" aria-pressed="${d.actividad===v}">${l}</button>`).join('')}${d.actividad?'<button type="button" data-set="deporte.actividad" data-v="" aria-label="Borrar respuesta">×</button>':sinInfo}</div></div>
+    <div class="ylf-q"><label for="ylf-obs">Observaciones</label><textarea id="ylf-obs" data-k="deporte.observaciones" placeholder="Dolor, preferencias, dificultades, disponibilidad">${esc(d.observaciones||'')}</textarea></div>`;
+}
+function chips(lista,clase,sel){
+  const todos=[...new Set(ALIM.concat(sel))];
+  return `<div class="ylf-chips ${clase}" role="group">${todos.map(a=>`<button type="button" class="ylf-chip" data-chip="${clase}" data-v="${esc(a)}" aria-pressed="${sel.includes(a)}">${esc(a)}</button>`).join('')}</div>
+    <div class="ylf-add"><input list="v22Foods" data-addchip="${clase}" placeholder="Agregar otro alimento" aria-label="Agregar alimento a ${clase==='favoritos'?'favoritos':'alimentos que evita'}"><button type="button" class="ylf-btn" data-addbtn="${clase}">Agregar</button></div>`;
+}
+function htmlNutricion(D){
+  const n=D.ficha.nutricion,al=n.alergias||{},h=n.habitos||{},c=n.comidas||{};
+  return `<div class="ylf-q"><span class="ylf-l">Comidas al día</span><div class="ylf-g2"><label for="ylf-cn">Cantidad<input id="ylf-cn" type="number" min="1" max="10" inputmode="numeric" data-k="nutricion.comidas.n" value="${esc(c.n??'')}" placeholder="Sin información"><span class="ylf-err" data-err="comidas"></span></label><label for="ylf-ch">Horarios<input id="ylf-ch" data-k="nutricion.comidas.horarios" value="${esc(c.horarios||'')}" placeholder="Ej: 7:00, 13:00, 19:30"></label></div></div>
+    <div class="ylf-q"><span class="ylf-l">Alimentos favoritos</span>${chips(ALIM,'favoritos',n.favoritos||[])}</div>
+    <div class="ylf-q"><span class="ylf-l">Alimentos que evita</span>${chips(ALIM,'evita',n.evita||[])}</div>
+    <div class="ylf-q"><span class="ylf-l" id="ylf-l-al">Alergias o restricciones</span>${tri('nutricion.alergias.r',['ninguna','cuales'],al.r)}${al.r==='cuales'?`<div class="ylf-det"><input data-k="nutricion.alergias.d" aria-labelledby="ylf-l-al" placeholder="¿Cuáles? (lactosa, maní, gluten…)" value="${esc(al.d||'')}"></div>`:''}</div>
+    <div class="ylf-q"><span class="ylf-l">Hábitos</span><div class="ylf-g2"><label for="ylf-ha">Agua<input id="ylf-ha" data-k="nutricion.habitos.agua" value="${esc(h.agua||'')}" placeholder="Ej: 2 litros al día"></label><label for="ylf-hb">Bebidas<input id="ylf-hb" data-k="nutricion.habitos.bebidas" value="${esc(h.bebidas||'')}" placeholder="Gaseosa, café, alcohol…"></label><label for="ylf-hs" style="grid-column:1/-1">Suplementos<input id="ylf-hs" data-k="nutricion.habitos.suplementos" value="${esc(h.suplementos||'')}" placeholder="Proteína, creatina…"></label></div></div>`;
+}
+/* ---------- resumen automático y alertas ---------- */
+function resumen(D){
+  const s=D.ficha.salud,d=D.ficha.deporte,n=D.ficha.nutricion,p=D.pers;
+  const alertas=[],sug=[],pend=[];
+  const salud=[];
+  SALUD.forEach(([k,l])=>{if(k==='embarazo'&&p.sex!=='Mujer')return;const a=s[k]||{};
+    if(!a.r)pend.push(l);
+    else if(a.r==='si'){salud.push(`${l}: ${a.d||'sí (sin detalle)'}`);if(!a.d)pend.push(l+' (detalle)')}
+    else if(a.r==='nosabe')salud.push(`${l}: no sabe`)});
+  if((s.alarma||{}).r==='si')alertas.push({alta:1,t:'Síntoma de alarma registrado'+((s.alarma||{}).d?': '+s.alarma.d:'')+'. Requiere revisión por un profesional de salud según su gravedad antes de avanzar.'});
+  if((s.enfermedades||{}).r==='si')alertas.push({t:'Enfermedad registrada'+(s.enfermedades.d?': '+s.enfermedades.d:'')+'. Verificar con su profesional de salud si hay indicaciones para el ejercicio y la alimentación.'});
+  if((s.restricciones||{}).r==='si')alertas.push({t:'Tiene restricciones médicas'+(s.restricciones.d?': '+s.restricciones.d:'')+'. Respetarlas en rutina y dieta.'});
+  if((s.restricciones||{}).r==='nosabe')alertas.push({t:'No sabe si tiene restricciones médicas: conviene confirmarlo.'});
+  if((s.embarazo||{}).r==='si')alertas.push({t:'Embarazo o posparto registrado. Ajustar el plan con indicación de su profesional de salud.'});
+  if((s.medicamentos||{}).r==='si')alertas.push({t:'Toma medicamentos'+(s.medicamentos.d?': '+s.medicamentos.d:'')+'. Algunos influyen en la respuesta al ejercicio o la dieta.'});
+  if((s.lesiones||{}).r==='si')sug.push(`Aclarar el estado funcional de ${s.lesiones.d||'la zona lesionada'} antes de seleccionar ejercicios.`);
+  if((s.cirugias||{}).r==='si')sug.push('Confirmar el alta y las limitaciones posteriores a la cirugía.');
+  const ent=[];if(objDef(p.objetivo))ent.push(objDef(p.objetivo).label);else pend.push('Objetivo principal');
+  if(d.experiencia)ent.push('experiencia '+(EXP.find(x=>x[0]===d.experiencia)||[])[1].toLowerCase());else pend.push('Experiencia');
+  if(d.actividad)ent.push('actividad: '+(ACTV.find(x=>x[0]===d.actividad)||[])[1].toLowerCase());else pend.push('Actividad actual');
+  if(d.observaciones)ent.push(d.observaciones);
+  ['age','sex','weight','height'].forEach(k=>{if(p[k]===''||p[k]==null)pend.push(PERS.find(x=>x[0]===k)[1])});
+  if(d.experiencia||d.actividad)sug.push('Distribuir sesiones según disponibilidad y recuperación.');
+  const nut=[];const c=n.comidas||{};
+  if(c.n)nut.push(c.n+' comidas'+(c.horarios?' ('+c.horarios+')':''));else pend.push('Comidas al día');
+  if((n.favoritos||[]).length)nut.push('prefiere '+n.favoritos.join(', ').toLowerCase());
+  if((n.evita||[]).length)nut.push('evita '+n.evita.join(', ').toLowerCase());
+  const al=n.alergias||{};
+  if(al.r==='cuales'){nut.push('alergias o restricciones: '+(al.d||'sin detalle'));alertas.push({t:'Alergia o restricción alimentaria'+(al.d?': '+al.d:'')+'. Excluir de los planes.'})}
+  else if(al.r==='ninguna')nut.push('sin alergias registradas');else pend.push('Alergias o restricciones');
+  const h=n.habitos||{};['agua','bebidas','suplementos'].forEach(k=>{if(h[k])nut.push(k+': '+h[k])});
+  if((n.favoritos||[]).length||c.n)sug.push('Utilizar alimentos aceptados y comprobar que los horarios sean sostenibles.');
+  return {salud,ent,nut,alertas,sug,pend};
+}
+function htmlResumen(D,u){
+  const r=resumen(D);const li=a=>a.length?`<ul>${a.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p>Sin información.</p>';
+  const hist=(u&&u.fichaHistorial||[]).slice(-3).reverse();
+  return `<h5>Salud</h5>${r.salud.length?li(r.salud):'<p>Sin hallazgos registrados.</p>'}
+    <h5>Entrenamiento</h5>${r.ent.length?`<p>${esc(r.ent.join(' · '))}</p>`:'<p>Sin información.</p>'}
+    <h5>Nutrición</h5>${r.nut.length?`<p>${esc(r.nut.join(' · '))}</p>`:'<p>Sin información.</p>'}
+    ${r.alertas.length?`<h5>Alertas</h5>${r.alertas.map(a=>`<p class="alert ${a.alta?'alta':''}">${esc(a.t)}</p>`).join('')}`:''}
+    ${r.sug.length?`<h5>Sugerencias</h5>${li(r.sug)}`:''}
+    ${r.pend.length?`<h5>Sin información</h5><p>${esc(r.pend.join(' · '))}</p>`:''}
+    <p class="ylf-note">Las sugerencias organizan la información; no diagnostican ni autorizan a entrenar. La atención clínica o nutricional corresponde a profesionales competentes.</p>
+    ${hist.length?`<div class="ylf-hist">Cambios recientes: ${hist.map(x=>`${esc(fmtF(x.fecha))} · ${esc(x.por)} · ${esc((x.campos||[]).slice(0,4).join(', '))}`).join(' — ')}</div>`:''}`;
+}
+/* ---------- pegar o escribir: propuesta editable ---------- */
+function proponer(txt){
+  const t=' '+String(txt||'').replace(/\s+/g,' ')+' ',tn=N(t),out=[];
+  const add=(k,l,v)=>{if(v!=null&&String(v).trim()!=='')out.push({k,l,v:String(v).trim()})};
+  let m;
+  if((m=tn.match(/(\d{1,2})\s*anos/)))add('p.age','Edad',m[1]);
+  if((m=t.match(/(\d{2,3}(?:[.,]\d)?)\s*(?:kg|kilos)/i)))add('p.weight','Peso (kg)',m[1].replace(',','.'));
+  if((m=t.match(/(1[.,]\d{2})\s*m\b/i)))add('p.height','Estatura (cm)',Math.round(parseFloat(m[1].replace(',','.'))*100));
+  else if((m=t.match(/(1\d{2}|2[0-2]\d)\s*cm/i)))add('p.height','Estatura (cm)',m[1]);
+  if(/\b(mujer|femenin)/.test(tn))add('p.sex','Sexo','Mujer');else if(/\b(hombre|masculin)/.test(tn))add('p.sex','Sexo','Hombre');
+  if(/bajar de peso|perder (grasa|peso)|adelgaz/.test(tn))add('p.objetivo','Objetivo','perdida_grasa');
+  else if(/ganar (masa|musculo)|aumentar masa|hipertrofia/.test(tn))add('p.objetivo','Objetivo','masa_muscular');
+  else if(/acondicionamiento|condicion fisica|estar en forma/.test(tn))add('p.objetivo','Objetivo','acondicionamiento');
+  else if(/fisicultur|competir|competencia/.test(tn))add('p.objetivo','Objetivo','fisiculturismo');
+  if(/principiante|nunca ha entrenado|no ha entrenado|empezando/.test(tn))add('deporte.experiencia','Experiencia','inicial');
+  else if(/intermedi/.test(tn))add('deporte.experiencia','Experiencia','media');
+  else if(/avanzad|anos entrenando|compite/.test(tn))add('deporte.experiencia','Experiencia','alta');
+  if(/sedentari|oficina todo el dia|no hace ejercicio/.test(tn))add('deporte.actividad','Actividad actual','sedentario');
+  else if(/entrena|gimnasio|gym/.test(tn))add('deporte.actividad','Actividad actual','entrena');
+  else if(/camina|activ[oa]/.test(tn))add('deporte.actividad','Actividad actual','activo');
+  if((m=t.match(/(?:lesi[oó]n|dolor)(?:\s+(?:de|en|del|la|el))*\s+([a-záéíóúñ ]{3,25}?)(?=[,.;]| y | pero |$)/i)))add('salud.lesiones','Lesiones o limitaciones (zona)',m[1]);
+  if((m=t.match(/(?:operad[oa]|cirug[ií]a)(?:\s+(?:de|del|en|la|el))*\s+([a-záéíóúñ ]{3,25}?)(?=[,.;]| y | pero |$)/i)))add('salud.cirugias','Cirugías',m[1]);
+  const ENF=['diabetes','hipertension','asma','hipotiroidismo','hipertiroidismo','colesterol','anemia','artritis','epilepsia','migrana','gastritis','ovario poliquistico'];
+  const e=ENF.filter(x=>tn.includes(x));if(e.length)add('salud.enfermedades','Enfermedades',e.join(', '));
+  if((m=t.match(/(?:toma|medicad[oa] con|medicamento[s]?:?)\s+([a-záéíóúñ0-9 ]{3,30}?)(?=[,.;]| y | pero |$)/i)))add('salud.medicamentos','Medicamentos',m[1]);
+  if((m=t.match(/(?:al[eé]rgic[oa] a|intolerante a|intolerancia a)(?:\s+(?:la|el|los|las))?\s+([a-záéíóúñ ]{3,25}?)(?=[,.;]| y | pero |$)/i)))add('nutricion.alergias','Alergias o restricciones',m[1]);
+  if((m=tn.match(/(\d)\s*comidas/)))add('nutricion.comidas.n','Comidas al día',m[1]);
+  if((m=t.match(/(?:le gusta[n]?|prefiere|favorit[oa]s?:?)\s+(?:el |la |los |las |comer )?([a-záéíóúñ ,]{3,60}?)(?=[.;]| pero |$)/i)))add('nutricion.favoritos','Alimentos favoritos',m[1]);
+  if((m=t.match(/(?:no le gusta[n]?|no come|evita|no consume)\s+(?:el |la |los |las )?([a-záéíóúñ ,]{3,60}?)(?=[.;]| pero |$)/i)))add('nutricion.evita','Alimentos que evita',m[1]);
+  if((m=t.match(/(\d+(?:[.,]\d)?\s*(?:litros?|l)\b[a-záéíóúñ ]{0,15})/i)))add('nutricion.habitos.agua','Agua',m[1]);
+  if(/embarazad|posparto|lactancia/.test(tn))add('salud.embarazo','Embarazo o posparto','registrado en el texto');
+  return out;
+}
+function aplicarPropuesta(D,items){
+  items.forEach(({k,v})=>{
+    if(k.startsWith('p.')){const pk=k.slice(2);D.pers[pk]=pk==='age'||pk==='weight'||pk==='height'?Number(v):v;return}
+    if(k==='nutricion.favoritos'||k==='nutricion.evita'){const key=k.split('.')[1],otro=key==='favoritos'?'evita':'favoritos';
+      String(v).split(/,| y /).map(x=>x.trim()).filter(Boolean).forEach(x=>{const nom=x.charAt(0).toUpperCase()+x.slice(1);
+        if(!D.ficha.nutricion[key].includes(nom))D.ficha.nutricion[key].push(nom);D.ficha.nutricion[otro]=D.ficha.nutricion[otro].filter(y=>y!==nom)});return}
+    if(k==='nutricion.alergias'){D.ficha.nutricion.alergias={r:'cuales',d:v};return}
+    if(k==='nutricion.comidas.n'){D.ficha.nutricion.comidas.n=Number(v);return}
+    if(k.startsWith('salud.')){const s=k.split('.')[1];D.ficha.salud[s]={r:'si',d:v};return}
+    setK(D.ficha,k,v);
+  });
+}
+/* ---------- componente ---------- */
+const LIMITES={age:[10,100,'La edad debe estar entre 10 y 100 años.'],weight:[30,250,'El peso debe estar entre 30 y 250 kg.'],height:[120,230,'La estatura debe estar entre 120 y 230 cm.'],bodyFat:[3,60,'El % de grasa debe estar entre 3 y 60.']};
+function montarFicha(host,D,opt){
+  opt=opt||{};let tab=opt.tab||'salud';
+  const pintar=()=>{
+    const pane=tab==='salud'?htmlSalud(D):tab==='deporte'?htmlDeporte(D,opt.modo):htmlNutricion(D);
+    host.innerHTML=`<div class="ylf" data-modo="${opt.modo||'edicion'}">
+      <div class="ylf-top"><div class="ylf-tabs" role="tablist" aria-label="Ficha del usuario">${[['salud','Salud'],['deporte','Deporte'],['nutricion','Nutrición']].map(([k,l])=>`<button type="button" role="tab" id="ylf-tab-${k}" aria-controls="ylf-pane" aria-selected="${tab===k}" tabindex="${tab===k?0:-1}" data-tab="${k}">${l}</button>`).join('')}</div>
+        <button type="button" class="ylf-btn" data-resumen>Ver resumen</button></div>
+      <div class="ylf-status" role="status" aria-live="polite" data-status>${host.dataset.st||''}</div>
+      <div class="ylf-pane" id="ylf-pane" role="tabpanel" aria-labelledby="ylf-tab-${tab}">${pane}</div>
+      <details class="ylf-paste" ${host.dataset.pasteOpen?'open':''}><summary>Pegar o escribir lo que contó el usuario</summary>
+        <textarea data-paste placeholder="Ej: Mujer de 31 años, 62 kg, 1,65 m. Quiere bajar de peso. Dolor de rodilla. Alérgica a la lactosa. 3 comidas, le gusta el pollo y el arroz.">${esc(host.dataset.pasteTxt||'')}</textarea>
+        <button type="button" class="ylf-btn" data-proponer style="margin-top:6px">Proponer datos</button><div class="ylf-prop" data-prop></div></details>
+      <div class="ylf-sum" data-sum ${host.dataset.sumOpen?'':'hidden'}>${host.dataset.sumOpen?htmlResumen(D,opt.usuario&&opt.usuario()):''}</div></div>`;
+  };
+  const cambio=campo=>{if(opt.onChange)opt.onChange(campo);if(host.dataset.sumOpen){const s=host.querySelector('[data-sum]');if(s)s.innerHTML=htmlResumen(D,opt.usuario&&opt.usuario())}};
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b||!host.contains(b))return;
+    if(b.dataset.tab){tab=b.dataset.tab;pintar();host.querySelector(`[data-tab="${tab}"]`)?.focus();return}
+    if(b.dataset.tri!=null){const path=b.dataset.tri,v=b.dataset.v;const cur=getK(D.ficha,path);setK(D.ficha,path,v&&cur!==v?v:undefined);
+      if(!getK(D.ficha,path)){const base=path.replace(/\.r$/,'');const o=getK(D.ficha,base);if(o)delete o.d}
+      pintar();cambio(path.split('.').slice(0,2).join('.'));return}
+    if(b.dataset.set){const cur=getK(D.ficha,b.dataset.set);setK(D.ficha,b.dataset.set,b.dataset.v&&cur!==b.dataset.v?b.dataset.v:undefined);pintar();cambio(b.dataset.set);return}
+    if(b.dataset.chip){const k=b.dataset.chip,otro=k==='favoritos'?'evita':'favoritos',v=b.dataset.v,L=D.ficha.nutricion;
+      L[k]=L[k].includes(v)?L[k].filter(x=>x!==v):L[k].concat(v);L[otro]=L[otro].filter(x=>x!==v);pintar();cambio('nutricion.'+k);return}
+    if(b.dataset.addbtn){const k=b.dataset.addbtn,inp=host.querySelector(`[data-addchip="${k}"]`);const v=(inp&&inp.value||'').trim();if(!v)return;
+      const otro=k==='favoritos'?'evita':'favoritos',L=D.ficha.nutricion;if(!L[k].includes(v))L[k].push(v);L[otro]=L[otro].filter(x=>x!==v);pintar();cambio('nutricion.'+k);return}
+    if(b.hasAttribute('data-resumen')){if(host.dataset.sumOpen){delete host.dataset.sumOpen}else host.dataset.sumOpen='1';pintar();if(host.dataset.sumOpen)host.querySelector('[data-sum]')?.scrollIntoView({block:'nearest'});return}
+    if(b.hasAttribute('data-proponer')){const ta=host.querySelector('[data-paste]');host.dataset.pasteTxt=ta.value;host.dataset.pasteOpen='1';
+      const items=proponer(ta.value);const box=host.querySelector('[data-prop]');
+      if(!items.length){box.innerHTML='<p class="ylf-note">No se detectaron datos. Puedes registrarlos en las pestañas.</p>';return}
+      const lab=it=>it.k==='p.objetivo'?(objDef(it.v)||{}).label:it.k==='deporte.experiencia'?(EXP.find(x=>x[0]===it.v)||[])[1]:it.k==='deporte.actividad'?(ACTV.find(x=>x[0]===it.v)||[])[1]:it.v;
+      box.innerHTML=items.map((it,i)=>`<label><input type="checkbox" checked data-pi="${i}"><span style="flex:1"><b>${esc(it.l)}</b><br>${['p.objetivo','deporte.experiencia','deporte.actividad','p.sex'].includes(it.k)?esc(lab(it)):`<input type="text" data-pv="${i}" value="${esc(it.v)}" aria-label="${esc(it.l)}">`}</span></label>`).join('')+
+        `<p class="ylf-note">Revisa y corrige la propuesta. Solo se guarda lo que confirmes.</p><button type="button" class="ylf-btn pri" data-confirmar>Confirmar y aplicar</button>`;
+      box._items=items;return}
+    if(b.hasAttribute('data-confirmar')){const box=host.querySelector('[data-prop]');const items=(box._items||[]).map((it,i)=>{const cb=box.querySelector(`[data-pi="${i}"]`);if(!cb||!cb.checked)return null;const tv=box.querySelector(`[data-pv="${i}"]`);return Object.assign({},it,{v:tv?tv.value:it.v})}).filter(Boolean);
+      const malos=items.filter(it=>LIMITES[it.k.slice(2)]&&!(Number(it.v)>=LIMITES[it.k.slice(2)][0]&&Number(it.v)<=LIMITES[it.k.slice(2)][1]));
+      if(malos.length){toast(malos.map(it=>LIMITES[it.k.slice(2)][2]).join(' '));return}
+      aplicarPropuesta(D,items);delete host.dataset.pasteTxt;delete host.dataset.pasteOpen;pintar();cambio('pegado: '+items.map(i=>i.l).join(', '));toast(items.length+' dato(s) aplicados a la ficha.');return}
+  });
+  host.addEventListener('keydown',e=>{const t=e.target;if(t.getAttribute&&t.getAttribute('role')==='tab'&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){const ks=['salud','deporte','nutricion'];let i=ks.indexOf(t.dataset.tab)+(e.key==='ArrowRight'?1:-1);tab=ks[(i+3)%3];pintar();host.querySelector(`[data-tab="${tab}"]`)?.focus();e.preventDefault()}});
+  const alEscribir=(e,final)=>{
+    const t=e.target;
+    if(t.dataset.k){let v=t.value;if(t.type==='number'){if(v===''){v=undefined}else{v=Number(v);if(t.dataset.k==='nutricion.comidas.n'&&!(v>=1&&v<=10)){const er=host.querySelector('[data-err="comidas"]');if(er)er.textContent='Entre 1 y 10 comidas.';return}}const er=host.querySelector('[data-err="comidas"]');if(er)er.textContent=''}
+      setK(D.ficha,t.dataset.k,v);if(final)cambio(t.dataset.k);return}
+    if(t.dataset.p){const k=t.dataset.p;let v=t.value;const er=host.querySelector(`[data-err="${k}"]`);
+      if(LIMITES[k]&&v!==''){const n=Number(v);if(!(n>=LIMITES[k][0]&&n<=LIMITES[k][1])){if(er)er.textContent=LIMITES[k][2];return}v=n}
+      if(er)er.textContent='';
+      if(k==='objetivo'&&final&&opt.alCambiarObjetivo){if(!opt.alCambiarObjetivo(v)){t.value=D.pers.objetivo||'';return}}
+      D.pers[k]=v;if(final){if(k==='sex')pintar();cambio('datos.'+k)}}
+  };
+  host.addEventListener('input',e=>alEscribir(e,false));
+  host.addEventListener('change',e=>alEscribir(e,true));
+  pintar();
+  return {pintar,setStatus:(txt,cls)=>{host.dataset.st=txt;const s=host.querySelector('[data-status]');if(s){s.textContent=txt;s.className='ylf-status '+(cls||'')}}};
+}
+/* volcar la ficha al usuario (fuente única del expediente) */
+function volcar(u,D,campos){
+  PERS.forEach(([k])=>{const v=D.pers[k];if(v===''||v==null){if(k!=='weight')delete u[k]}else u[k]=v});
+  if(u.sex)u.gender=u.sex==='Mujer'?'Femenino':'Masculino';
+  u.ficha=clone(D.ficha);u.ficha.actualizadoEn=new Date().toISOString();u.ficha.actualizadoPor=coachActual();
+  const s=D.ficha.salud||{};const salud=['enfermedades','lesiones'].map(k=>s[k]&&s[k].r==='si'?(s[k].d||'sí'):'').filter(Boolean).join(' · ');
+  if(salud)u.healthNotes=salud;else delete u.healthNotes;
+  const act={sedentario:'Sedentario',activo:'Activo',entrena:'Entrena'}[(D.ficha.deporte||{}).actividad];if(act)u.activityLevel=act;
+  if(campos&&campos.length){const H=(u.fichaHistorial=u.fichaHistorial||[]);const ult=H.at(-1);const ahora=Date.now();
+    if(ult&&ult.por===coachActual()&&ahora-new Date(ult.fecha).getTime()<10*60e3){ult.fecha=new Date().toISOString();ult.campos=[...new Set(ult.campos.concat(campos))]}
+    else H.push({fecha:new Date().toISOString(),por:coachActual(),campos:[...new Set(campos)]});
+    if(H.length>100)H.splice(0,H.length-100)}
+}
+const NOMBRES={'datos.fullName':'Nombre','datos.age':'Edad','datos.sex':'Sexo','datos.weight':'Peso','datos.height':'Estatura','datos.bodyFat':'% grasa','datos.objetivo':'Objetivo'};
+const nomCampo=c=>NOMBRES[c]||(()=>{const k=c.split('.')[1]||c;const s=SALUD.find(x=>x[0]===k);if(s)return s[1];return ({experiencia:'Experiencia',actividad:'Actividad actual',observaciones:'Observaciones',comidas:'Comidas al día',favoritos:'Alimentos favoritos',evita:'Alimentos que evita',alergias:'Alergias o restricciones',habitos:'Hábitos'})[k]||c})();
+
+/* ---------- ficha en edición (expediente) con autoguardado real ---------- */
+window.ylAbrirFicha=function(id,tab){
+  if(!esCoach()){toast('La ficha es de uso exclusivo del coach.');return}
+  const u=byId(id);if(!u){toast('Usuario no encontrado.');return}
+  const inicial=clone({u:Object.assign({},u)});
+  const D=datosDe(u);
+  window.openModal(`Ficha · ${esc(u.fullName||u.name)}`,`<p class="ylf-note" style="margin-top:0">Uso exclusivo del coach. Todos los campos son opcionales; lo que no se responda queda como «Sin información». Los cambios se guardan solos.</p>
+    <div class="ylf-g2" style="margin-bottom:6px"><label for="ylf-phone">Celular / WhatsApp<input id="ylf-phone" type="tel" value="${esc(u.phone||'')}" placeholder="Sin registrar" style="width:100%;box-sizing:border-box;background:#0d0d0f;border:1px solid #3a3a40;color:#fff;border-radius:10px;padding:10px;min-height:44px"></label></div>
+    <div id="ylFichaHost"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:8px"><button type="button" class="ylf-btn" id="ylFichaDeshacer">Deshacer cambios de esta sesión</button><button type="button" class="ylf-btn pri" id="ylFichaListo">Listo</button></div>`);
+  const host=$('ylFichaHost');let pendiente=null,esperando=false,t0=0;
+  const ui=montarFicha(host,D,{modo:'edicion',tab,usuario:()=>byId(id),
+    alCambiarObjetivo:v=>{if(!v){toast('Elige un objetivo; para dejarlo pendiente no lo cambies.');return false}const uu=byId(id);if(!aplicarObjetivo(uu,v,{confirmar:true}))return false;return true},
+    onChange:campo=>{const uu=byId(id);if(!uu)return;volcar(uu,D,[nomCampo(campo)]);
+      ui.setStatus('Guardando…','');esperando=true;t0=Date.now();clearTimeout(pendiente);
+      if(!guardar()){ui.setStatus('No se pudo guardar. Revisa la conexión e intenta de nuevo.','err');return}
+      pendiente=setTimeout(()=>{if(esperando)ui.setStatus('Guardado en este equipo. Pendiente de sincronizar con el servidor…','')},6000)}});
+  const oy=(kind,retry)=>{if(!esperando)return;if(kind==='saved'){esperando=false;clearTimeout(pendiente);ui.setStatus('Guardado ✓ '+new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),'ok')}
+    else if(kind==='error'){esperando=false;clearTimeout(pendiente);ui.setStatus('Error al guardar. ','err');const s=host.querySelector('[data-status]');if(s){const b=document.createElement('button');b.type='button';b.className='ylf-btn';b.textContent='Reintentar';b.onclick=()=>{ui.setStatus('Guardando…','');esperando=true;if(retry)retry();else guardar()};s.appendChild(b)}}};
+  oyentes.add(oy);
+  const ph=$('ylf-phone');if(ph)ph.addEventListener('change',()=>{const uu=byId(id);uu.phone=ph.value.trim();volcar(uu,D,['Celular']);ui.setStatus('Guardando…','');esperando=true;guardar()});
+  $('ylFichaDeshacer').onclick=()=>{if(!confirm('¿Deshacer todos los cambios hechos desde que abriste la ficha?'))return;const uu=byId(id);Object.keys(uu).forEach(k=>delete uu[k]);Object.assign(uu,inicial.u);guardar();oyentes.delete(oy);window.closeModal&&window.closeModal();toast('Cambios deshechos.');setTimeout(()=>window.ylAbrirFicha(id,tab),80)};
+  $('ylFichaListo').onclick=()=>{oyentes.delete(oy);window.closeModal&&window.closeModal();setTimeout(()=>{try{window.yv74Expediente(id)}catch(e){}},80)};
+};
+window.ylEditarExpediente=id=>window.ylAbrirFicha(id,'deporte');
+
+/* ---------- alta de usuario: objetivo obligatorio + ficha opcional ---------- */
+let altaD=null;
+const oOpen=window.yv68OpenCreate;
+if(oOpen){window.yv68OpenCreate=function(){
+  const r=oOpen.apply(this,arguments);altaD={ficha:fichaVacia(),pers:{fullName:'',age:'',sex:'',weight:'',height:'',bodyFat:'',objetivo:''}};
+  setTimeout(()=>{
+    const g=$('newUserGoal');if(!g||g.dataset.ylObj)return;g.dataset.ylObj='1';
+    g.innerHTML='<option value="">Elige el objetivo principal…</option>'+OBJ.map(o=>`<option value="${o.id}">${o.label}</option>`).join('');g.value='';g.required=true;
+    const lab=g.closest('.form-group')?.querySelector('label');if(lab)lab.textContent='OBJETIVO PRINCIPAL · obligatorio';
+    const tipos=document.querySelector('#yv68CreateOverlay .yv68-types');const tl=tipos&&tipos.previousElementSibling;
+    if(tipos){tipos.style.display='none';if(tl&&tl.classList.contains('yv68-label'))tl.style.display='none';
+      const info=document.createElement('div');info.className='ylo-perfil';info.id='yloPerfil';info.innerHTML='Perfil: <b>se asigna según el objetivo</b>. «Preparación fisiculturismo» activa el perfil Fisiculturista.';tipos.after(info)}
+    g.addEventListener('change',()=>{const bb=g.value==='fisiculturismo';try{window.yv68PickType(bb?'bb':'general')}catch(e){}const i=$('yloPerfil');if(i)i.innerHTML=g.value?`Perfil: <b>${bb?'Fisiculturista':'General'}</b> (automático según el objetivo).`:'Perfil: <b>se asigna según el objetivo</b>.'});
+    const err=$('yv68Err');if(err&&!$('ylAltaFicha')){const d=document.createElement('details');d.id='ylAltaFicha';d.className='yl-hc';d.open=true;d.style.cssText='margin:6px 0 12px;border:1px solid #303036;border-radius:14px;padding:4px 12px 10px;background:#121214';
+      d.innerHTML='<summary style="cursor:pointer;font-weight:800;font-size:13px;padding:10px 0">Ficha del usuario · Salud · Deporte · Nutrición <small style="color:#8e8e93;font-weight:600">(opcional)</small></summary><div id="ylAltaFichaHost"></div>';
+      err.before(d);montarFicha($('ylAltaFichaHost'),altaD,{modo:'alta'})}
+  },30);return r};
+  window.openUserModal=window.v27CreateUser=window.v26CreateUser=window.yv68OpenCreate;
+}
+const oCreate=window.yv68Create;
+if(oCreate){window.yv68Create=async function(){
+  const g=$('newUserGoal'),err=$('yv68Err');
+  if(g&&g.dataset.ylObj&&!objDef(g.value)){if(err){err.textContent='Elige el objetivo principal del usuario.';err.style.display='block'}g.focus();return}
+  const obj=g&&g.value,D=altaD||{ficha:fichaVacia(),pers:{}};
+  const nombre=N($('newUserName')?.value||'');const antes=new Set((state.users||[]).map(u=>String(u.id)));
+  const r=await oCreate.apply(this,arguments);
+  const u=(state.users||[]).find(x=>!antes.has(String(x.id))&&N(x.name)===nombre);
+  if(u){
+    if(objDef(obj))aplicarObjetivo(u,obj);
+    D.pers.fullName=u.fullName||'';D.pers.age=u.age||'';D.pers.objetivo=u.objetivo||'';
+    const tocados=Object.keys(D.pers).filter(k=>D.pers[k]!==''&&D.pers[k]!=null).length+JSON.stringify(D.ficha).length>140?['Alta con ficha']:['Alta'];
+    volcar(u,D,tocados);if(!u.weight)u.weight=0;
+    guardar();
+  }
+  altaD=null;return r};window.createUser=window.yv68Create}
+
+/* ---------- expediente: objetivo, ficha y resumen ---------- */
+const oExp=window.yv74Expediente;
+if(oExp){window.yv74Expediente=function(id){const r=oExp.apply(this,arguments);let n=0;
+  const pintar=()=>{const exp=document.querySelector('.yv74-exp');if(!exp){if(++n<20)setTimeout(pintar,50);return}if(exp.dataset.ylElite)return;exp.dataset.ylElite='1';
+    const u=byId(id);if(!u)return;const D=datosDe(u);
+    exp.querySelectorAll('.yl-exp-edit').forEach(b=>b.remove());
+    const head=exp.querySelector('.yv74-exp-head');
+    if(head&&esCoach()){head.style.display='flex';head.style.alignItems='center';head.style.flexWrap='wrap';head.style.gap='10px';
+      head.insertAdjacentHTML('beforeend',`<button type="button" class="btn btn-red yl-exp-edit" style="margin-left:auto" onclick="closeModal();ylAbrirFicha('${esc(u.id)}','deporte')">Editar expediente y ficha</button>`)}
+    const p=head&&head.querySelector('p');if(p&&!p.dataset.ylo){p.dataset.ylo='1';p.insertAdjacentHTML('beforeend',` · Objetivo: <b>${esc(objetivoTexto(u))}</b>`)}
+    const kv=exp.querySelector('.yv74-kvs');
+    if(kv){[...kv.querySelectorAll('.yv74-kv')].forEach(x=>{const s=x.querySelector('small');const b=x.querySelector('b');if(!s||!b)return;
+        if(/Objetivo/i.test(s.textContent))b.textContent=objetivoTexto(u);
+        if(/No especificado/.test(b.textContent))b.textContent='Sin registrar'});
+      kv.insertAdjacentHTML('beforeend',`<div class="yv74-kv"><small>Sexo</small><b>${esc(u.sex||'Sin registrar')}</b></div><div class="yv74-kv"><small>% grasa</small><b>${u.bodyFat?esc(u.bodyFat)+' %':'Sin registrar'}</b></div>`);
+      kv.insertAdjacentHTML('afterend',`<h4>Ficha · resumen</h4><div class="ylf-sum">${htmlResumen(D,u)}</div>${esCoach()?`<button type="button" class="btn" style="margin-top:8px" onclick="closeModal();ylAbrirFicha('${esc(u.id)}','salud')">Abrir ficha (Salud · Deporte · Nutrición)</button>`:''}`)}
+  };setTimeout(pintar,30);return r}}
+
+
+/* «Hacer fisiculturista» desde la tarjeta usa la misma regla: objetivo y perfil van juntos */
+const oSetType=window.yv68SetType;
+if(oSetType){window.yv68SetType=function(id,bb){const u=byId(id);if(u&&bb&&objetivoDe(u)!=='fisiculturismo'){if(!aplicarObjetivo(u,'fisiculturismo',{confirmar:true}))return}return oSetType.apply(this,arguments)}}
+/* =====================================================================
+   D. CALCULADORA DE DIETA
+   ===================================================================== */
+const FORM={
+ mifflin:{name:'Mifflin-St Jeor',tag:'Más precisa para población general',eq:'TMB = 10×peso + 6,25×estatura − 5×edad + 5 (H) / −161 (M)'},
+ harris:{name:'Harris-Benedict',tag:'Clásica revisada (1984)',eq:'H: 88,362 + 13,397×peso + 4,799×estatura − 5,677×edad · M: 447,593 + 9,247×peso + 3,098×estatura − 4,330×edad'},
+ katch:{name:'Katch-McArdle',tag:'Preferida para deportistas',eq:'TMB = 370 + 21,6 × masa magra (requiere % de grasa)'}
+};
+const FACT=[['1.2','Sedentario · 1,2'],['1.375','Ligera (1-3 días) · 1,375'],['1.55','Moderada (3-5 días) · 1,55'],['1.725','Alta (6-7 días) · 1,725'],['1.9','Muy alta · 1,9']];
+const ACT2F={sedentario:'1.2',activo:'1.375',entrena:'1.55',Sedentario:'1.2','Ligera (1-3 días)':'1.375','Moderada (3-5 días)':'1.55','Alta (6-7 días)':'1.725','Muy alta / doble sesión':'1.9',Activo:'1.375',Entrena:'1.55'};
+const EXPK=['sex','age','w','h','bf','act'];
+const EXPLAB={sex:'sexo',age:'edad',w:'peso',h:'estatura',bf:'% grasa',act:'actividad'};
+function delExpediente(u){
+  const f=(u&&u.ficha&&u.ficha.deporte)||{};
+  const act=ACT2F[f.actividad]||ACT2F[u&&u.activityLevel]||'';
+  return {sex:u&&u.sex?(u.sex==='Mujer'?'F':'M'):(u&&/fem/i.test(u.gender||'')?'F':(u&&/masc/i.test(u.gender||'')?'M':'')),age:u&&u.age||'',w:u&&u.weight||'',h:u&&u.height||'',bf:u&&u.bodyFat||'',act};
+}
+let C=null; /* estado de la calculadora en pantalla */
+function calcStore(){state.dietCalc=state.dietCalc&&typeof state.dietCalc==='object'?state.dietCalc:{};return state.dietCalc}
+function selUser(){try{return window.yv74Selected?window.yv74Selected():null}catch(e){return null}}
+function nuevoEstado(u){
+  const e=delExpediente(u);const o=objDef(u&&u.objetivo);
+  return {uid:u?String(u.id):'',f:'mifflin',in:Object.assign({},e,{goal:o?o.calc:'mantener',adj:400,pk:2,fk:0.9}),mant:{modo:'auto',v:''},ov:{},esc:{},pendExp:{},origen:u?'expediente':'sin usuario',at:new Date().toISOString()};
+}
+function cargarEstado(u){
+  if(!u)return nuevoEstado(null);
+  const guardado=calcStore()[String(u.id)];
+  const dieta=((state.userAssignments||{})[String(u.id)]||{}).diet;
+  /* un cálculo nuevo parte de la dieta vigente, pero los datos de escenario de esa dieta no pasan: manda el expediente */
+  let S=guardado?clone(guardado):(dieta&&dieta.calculo&&dieta.calculo.estado?Object.assign(clone(dieta.calculo.estado),{origen:'dieta vigente',esc:{},avisoRecalc:false}):null);
+  if(!S)return nuevoEstado(u);
+  /* los datos del expediente vigentes reemplazan a los guardados, salvo los usados solo en este cálculo */
+  const e=delExpediente(u);S.esc=S.esc||{};S.pendExp={};S.ov=S.ov||{};S.mant=S.mant||{modo:'auto',v:''};
+  EXPK.forEach(k=>{if(!S.esc[k])S.in[k]=e[k]});
+  return S;
+}
+function calcular(S){
+  const i=S.in,f=S.f,w=+i.w,h=+i.h,age=+i.age,bf=i.bf===''?null:+i.bf,act=+i.act;
+  const errs=[];const falta=[];
+  if(S.mant.modo==='auto'){
+    if(!i.sex&&f!=='katch')falta.push('sexo');if(!(age>0)&&f!=='katch')falta.push('edad');if(!(w>0))falta.push('peso');if(!(h>0)&&f!=='katch')falta.push('estatura');if(!(act>0))falta.push('actividad');
+    if(f==='katch'&&!(bf>0))falta.push('% grasa');
+    if(w&&!(w>=30&&w<=250))errs.push('El peso debe estar entre 30 y 250 kg.');if(h&&!(h>=120&&h<=230))errs.push('La estatura debe estar entre 120 y 230 cm.');if(age&&!(age>=10&&age<=100))errs.push('La edad debe estar entre 10 y 100 años.');if(bf!=null&&!(bf>=3&&bf<=60))errs.push('El % de grasa debe estar entre 3 y 60.');
+  }else{const v=+S.mant.v;if(!(v>=800&&v<=8000))errs.push('Escribe el mantenimiento entre 800 y 8000 kcal/día.')}
+  if(!(+i.adj>=0&&+i.adj<=1500))errs.push('El déficit o superávit debe estar entre 0 y 1500 kcal.');
+  const pk=+i.pk,fk=+i.fk;if(!(pk>=0&&pk<=4))errs.push('Proteína entre 0 y 4 g/kg.');if(!(fk>=0&&fk<=3))errs.push('Grasa entre 0 y 3 g/kg.');
+  let bmr=null,get=null;
+  if(S.mant.modo==='auto'&&!falta.length&&!errs.length){
+    if(f==='katch')bmr=370+21.6*(w*(1-bf/100));else if(f==='mifflin')bmr=10*w+6.25*h-5*age+(i.sex==='M'?5:-161);else bmr=i.sex==='M'?88.362+13.397*w+4.799*h-5.677*age:447.593+9.247*w+3.098*h-4.330*age;
+    get=bmr*act}
+  else if(S.mant.modo==='manual'&&+S.mant.v>=800&&+S.mant.v<=8000)get=+S.mant.v;
+  const R=v=>v==null?null:Math.round(v);
+  const calc={};
+  if(get!=null){calc.kcal=R(i.goal==='deficit'?get-(+i.adj):i.goal==='superavit'?get+(+i.adj):get)}
+  if(w>0){calc.p=R(pk*w);calc.f=R(fk*w)}
+  const fin={};['kcal','p','f'].forEach(k=>{fin[k]=S.ov[k]!=null&&S.ov[k]!==''?+S.ov[k]:calc[k]});
+  if(fin.kcal!=null&&fin.p!=null&&fin.f!=null)calc.c=R(Math.max(0,(fin.kcal-fin.p*4-fin.f*9)/4));
+  fin.c=S.ov.c!=null&&S.ov.c!==''?+S.ov.c:calc.c;
+  return {bmr:R(bmr),get:R(get),calc,fin,falta,errs};
+}
+const RES=[['kcal','Calorías objetivo','kcal/día'],['p','Proteína','g/día'],['c','Carbohidratos','g/día'],['f','Grasas','g/día']];
+function pintarCalc(){
+  const box=$('yv74Calc');if(!box||!C)return;const S=C,r=calcular(S),u=byId(S.uid);
+  const dieta=u&&((state.userAssignments||{})[String(u.id)]||{}).diet;
+  const org=!u?'Sin usuario elegido: elige el USUARIO DEL PLAN para traer sus datos del expediente.':
+    `Datos iniciales del <b>expediente de ${esc(u.fullName||u.name)}</b>${u.ficha&&u.ficha.actualizadoEn?' · actualizado '+esc(fmtF(u.ficha.actualizadoEn)):''}${S.origen==='dieta vigente'?' · ajustes de la <b>dieta vigente</b>':''}`;
+  const sinReg=k=>S.in[k]===''||S.in[k]==null;
+  const inp=(k,l,t,extra)=>`<label class="yv74-fld"><span>${l}${EXPK.includes(k)&&u?(S.esc[k]?' <span class="ylc-badge man">solo este cálculo</span>':''):''}</span>${t}${EXPK.includes(k)&&u&&sinReg(k)?'<small style="color:#8e8e93;font-size:11px">Sin registrar en el expediente</small>':''}</label>`;
+  const pend=Object.keys(S.pendExp||{});
+  box.className='yv74-calc ylc';
+  box.innerHTML=`<div class="yv74-calc-h"><div><small>CALCULADORA NUTRICIONAL</small><h3>Calorías y macronutrientes</h3></div></div>
+    <div class="ylc-org"><span>${org}</span>${dieta&&dieta.meals?`<button type="button" class="ylf-btn" data-cargar>Editar la dieta vigente</button>`:''}</div>
+    <div class="yv74-forms">${Object.entries(FORM).map(([k,f])=>`<button type="button" data-f="${k}" class="${k===S.f?'on':''}" aria-pressed="${k===S.f}"><b>${f.name}</b><span>${f.tag}</span></button>`).join('')}</div>
+    <p class="yv74-eq"><b>${FORM[S.f].name}</b><br><code>${FORM[S.f].eq}</code></p>
+    <div class="yv74-g4">
+      ${inp('sex','Sexo',`<select data-in="sex"><option value="">Sin registrar</option><option value="F" ${S.in.sex==='F'?'selected':''}>Mujer</option><option value="M" ${S.in.sex==='M'?'selected':''}>Hombre</option></select>`)}
+      ${inp('age','Edad (años)',`<input data-in="age" type="number" inputmode="numeric" min="10" max="100" value="${esc(S.in.age)}" placeholder="Sin registrar">`)}
+      ${inp('w','Peso (kg)',`<input data-in="w" type="number" inputmode="decimal" step="0.1" min="30" max="250" value="${esc(S.in.w)}" placeholder="Sin registrar">`)}
+      ${inp('h','Estatura (cm)',`<input data-in="h" type="number" inputmode="numeric" min="120" max="230" value="${esc(S.in.h)}" placeholder="Sin registrar">`)}
+      ${inp('bf','% grasa corporal',`<input data-in="bf" type="number" inputmode="decimal" step="0.1" min="3" max="60" value="${esc(S.in.bf)}" placeholder="${S.f==='katch'?'Obligatorio en Katch':'Opcional'}">`)}
+      ${inp('act','Actividad',`<select data-in="act"><option value="">Sin registrar</option>${FACT.map(([v,l])=>`<option value="${v}" ${String(S.in.act)===v?'selected':''}>${l}</option>`).join('')}</select>`)}
+      <label class="yv74-fld"><span>Objetivo calórico</span><select data-in="goal"><option value="mantener" ${S.in.goal==='mantener'?'selected':''}>Mantener</option><option value="deficit" ${S.in.goal==='deficit'?'selected':''}>Déficit</option><option value="superavit" ${S.in.goal==='superavit'?'selected':''}>Superávit</option></select></label>
+      <label class="yv74-fld" ${S.in.goal==='mantener'?'style="display:none"':''}><span>${S.in.goal==='superavit'?'Superávit':'Déficit'} (kcal/día)</span><input data-in="adj" type="number" inputmode="numeric" min="0" max="1500" step="25" value="${esc(S.in.adj)}"></label>
+      <label class="yv74-fld"><span>Proteína (g/kg)</span><input data-in="pk" type="number" inputmode="decimal" step="0.1" min="0" max="4" value="${esc(S.in.pk)}"></label>
+      <label class="yv74-fld"><span>Grasa (g/kg)</span><input data-in="fk" type="number" inputmode="decimal" step="0.1" min="0" max="3" value="${esc(S.in.fk)}"></label>
+    </div>
+    ${pend.length?`<div class="ylc-aviso" role="status"><span>Cambiaste ${pend.map(k=>EXPLAB[k]).join(', ')} respecto al expediente. ¿Qué hacemos?</span><button type="button" class="ylf-btn" data-exp="si">Actualizar expediente</button><button type="button" class="ylf-btn" data-exp="no">Usar solo en este cálculo</button></div>`:''}
+    <h4 style="margin:14px 0 4px;font-size:13px">Calorías de mantenimiento</h4>
+    <div class="ylc-modo" role="radiogroup" aria-label="Cómo establecer el mantenimiento">
+      <label><input type="radio" name="ylcModo" value="auto" ${S.mant.modo==='auto'?'checked':''}> Calcular automáticamente</label>
+      <label><input type="radio" name="ylcModo" value="manual" ${S.mant.modo==='manual'?'checked':''}> Introducir manualmente</label></div>
+    ${S.mant.modo==='manual'?`<label class="yv74-fld" style="max-width:260px"><span>Mantenimiento (kcal/día) <span class="ylc-badge man">Modificado por el coach</span></span><input data-mant type="number" inputmode="numeric" min="800" max="8000" step="10" value="${esc(S.mant.v)}" placeholder="Ej: 2100"></label>${r.bmr==null&&S.mant.modo==='manual'?'':''}`:
+      `<p class="ylc-line">${r.get!=null?`TMB <b>${r.bmr} kcal</b> × factor ${String(S.in.act).replace('.',',')} = Mantenimiento (GET) <b>${r.get} kcal/día</b> · ${FORM[S.f].name} <span class="ylc-badge">Calculado</span>`:`Faltan datos para calcular: ${esc(r.falta.join(', ')||'revisa los valores')}.`}</p>`}
+    ${r.errs.length?`<div class="yv58-signup-error" style="display:block">${r.errs.map(esc).join('<br>')}</div>`:''}
+    <h4 style="margin:14px 0 4px;font-size:13px">Resultados (editables)</h4>
+    <div class="ylc-res">${RES.map(([k,l,u2])=>{const man=S.ov[k]!=null&&S.ov[k]!=='';const v=r.fin[k];const pc=k!=='kcal'&&r.fin.kcal&&v!=null?Math.round((k==='f'?v*9:v*4)/r.fin.kcal*100)+' % de las kcal':'';
+      return `<div class="r ${k==='kcal'?'hl':''}"><small>${l.toUpperCase()}</small><input data-ov="${k}" type="number" inputmode="numeric" min="0" step="1" value="${v==null?'':v}" placeholder="—" aria-label="${l} (${u2})"><div class="u">${u2}${pc?' · '+pc:''}</div>
+        <span class="ylc-badge ${man?'man':''}">${man?'Modificado por el coach':'Calculado'}</span>${man?`<br><button type="button" data-reset="${k}">Restablecer valor calculado${r.calc[k]!=null?' ('+r.calc[k]+')':''}</button>`:''}</div>`}).join('')}</div>
+    ${(()=>{const f=r.fin;if(f.kcal==null||f.p==null||f.c==null||f.f==null)return '';const mk=f.p*4+f.c*4+f.f*9,d=Math.round(mk-f.kcal);return Math.abs(d)>=20?`<div class="ylc-aviso">Los macronutrientes suman ${Math.round(mk)} kcal y el objetivo es ${f.kcal} kcal (diferencia ${d>0?'+':''}${d} kcal). Se respeta tu prescripción; revisa si quieres ajustarla.</div>`:''})()}
+    ${S.avisoRecalc?`<div class="ylc-aviso" role="status"><span>Cambiaron los datos del cálculo y tienes ajustes manuales.</span><button type="button" class="ylf-btn" data-recalc="no">Conservar ajustes</button><button type="button" class="ylf-btn" data-recalc="si">Recalcular</button></div>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${Object.keys(S.ov).filter(k=>S.ov[k]!=null&&S.ov[k]!=='').length||S.mant.modo==='manual'?'<button type="button" class="ylf-btn" data-reset="todo">Restablecer todo lo calculado</button>':''}</div>
+    <p class="yv72-note">Punto de partida editable por el coach, no una prescripción automática. Lo que guardes en la dieta queda con estas cifras finales.</p>`;
+  /* metas para el plan de comidas */
+  try{v9DietTarget=r.fin.kcal!=null?{bmr:r.bmr,tdee:r.get,calories:r.fin.kcal,protein:r.fin.p,carbs:r.fin.c,fat:r.fin.f,goal:S.in.goal,weight:+S.in.w||null,formula:FORM[S.f].name,manual:{mantenimiento:S.mant.modo==='manual',kcal:S.ov.kcal!=null&&S.ov.kcal!=='',p:S.ov.p!=null&&S.ov.p!=='',c:S.ov.c!=null&&S.ov.c!=='',f:S.ov.f!=null&&S.ov.f!==''}}:null}catch(x){}
+  const any=document.querySelector('#v22Meals input');if(any)any.dispatchEvent(new Event('input',{bubbles:true}));
+}
+let tGuardar=null;
+function persistir(){if(!C||!C.uid)return;C.at=new Date().toISOString();calcStore()[C.uid]=clone(C);clearTimeout(tGuardar);tGuardar=setTimeout(guardar,400)}
+function abrirParaUsuario(u,forzar){
+  if(!$('yv74Calc'))return;
+  if(!forzar&&C&&u&&C.uid===String(u.id))return;
+  C=cargarEstado(u);pintarCalc();
+}
+window.ylCalcInject=function(){
+  const pane=$('v22DietPane');if(!pane)return;
+  let box=$('yv74Calc');
+  if(!box){pane.insertAdjacentHTML('afterbegin','<section id="yv74Calc" class="yv74-calc ylc"></section>');box=$('yv74Calc')}
+  if(!box.dataset.ylc){box.dataset.ylc='1';
+    box.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!C)return;
+      if(b.dataset.f){C.f=b.dataset.f;persistir();pintarCalc();return}
+      if(b.dataset.reset){if(b.dataset.reset==='todo'){C.ov={};C.mant={modo:'auto',v:C.mant.v}}else delete C.ov[b.dataset.reset];C.avisoRecalc=false;persistir();pintarCalc();return}
+      if(b.dataset.recalc){if(b.dataset.recalc==='si')C.ov={};C.avisoRecalc=false;persistir();pintarCalc();return}
+      if(b.dataset.exp){const u=byId(C.uid);const ks=Object.keys(C.pendExp||{});
+        if(b.dataset.exp==='si'&&u){ks.forEach(k=>{const v=C.in[k];if(k==='sex'){u.sex=v==='F'?'Mujer':v==='M'?'Hombre':undefined;if(u.sex)u.gender=u.sex==='Mujer'?'Femenino':'Masculino'}
+            else if(k==='act'){const m={'1.2':'sedentario','1.375':'activo','1.55':'entrena'}[String(v)];u.ficha=u.ficha||fichaVacia();u.ficha.deporte=u.ficha.deporte||{};if(m)u.ficha.deporte.actividad=m;u.activityLevel=(FACT.find(x=>x[0]===String(v))||[])[1]?.split(' · ')[0]||u.activityLevel}
+            else{const map={age:'age',w:'weight',h:'height',bf:'bodyFat'};u[map[k]]=v===''?undefined:Number(v)}
+            delete C.esc[k]});
+          (u.fichaHistorial=u.fichaHistorial||[]).push({fecha:new Date().toISOString(),por:coachActual(),campos:ks.map(k=>EXPLAB[k]).map(x=>x+' (desde la calculadora)')});
+          guardar();toast('Expediente actualizado.')}
+        else ks.forEach(k=>C.esc[k]=true);
+        C.pendExp={};persistir();pintarCalc();return}
+      if(b.hasAttribute('data-cargar')){cargarDietaVigente();return}
+    });
+    const alCambiar=(e,final)=>{const t=e.target;if(!C)return;
+      if(t.name==='ylcModo'){C.mant.modo=t.value;persistir();pintarCalc();return}
+      if(t.dataset.mant!=null){C.mant.v=t.value;if(final){persistir();pintarCalc()}else{persistirSuave()}return}
+      if(t.dataset.ov){const k=t.dataset.ov;if(t.value===''){delete C.ov[k]}else C.ov[k]=Number(t.value);if(final){persistir();pintarCalc()}else persistirSuave();return}
+      if(t.dataset.in){const k=t.dataset.in;C.in[k]=t.value;
+        if(EXPK.includes(k)&&C.uid){const e2=delExpediente(byId(C.uid));if(String(e2[k])!==String(t.value)&&!C.esc[k])C.pendExp[k]=true;else delete C.pendExp[k]}
+        if(Object.keys(C.ov).some(x=>C.ov[x]!=null&&C.ov[x]!==''))C.avisoRecalc=true;
+        if(final){persistir();pintarCalc()}else persistirSuave()}
+    };
+    /* mientras se escribe solo se guarda; la pantalla se recalcula al salir del campo o con Enter (no se pierde el foco) */
+    let tS=null;const persistirSuave=()=>{clearTimeout(tS);tS=setTimeout(persistir,700)};
+    box.addEventListener('input',e=>alCambiar(e,false));box.addEventListener('change',e=>alCambiar(e,true));
+    box.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();e.target.blur()}});
+  }
+  abrirParaUsuario(selUser(),false);
+};
+function cargarDietaVigente(){
+  const u=byId(C&&C.uid);const d=u&&((state.userAssignments||{})[String(u.id)]||{}).diet;if(!d)return;
+  const nm=$('v22DietName');if(nm)nm.value=d.name||'Plan nutricional';const nt=$('yv53DietNotes');if(nt)nt.value=d.notes||'';
+  const c=$('v22Meals');if(c&&typeof v22AddMeal==='function'){c.innerHTML='';(d.meals||[]).forEach(m=>{v22AddMeal(m.name,m.time);const meal=[...document.querySelectorAll('#v22Meals .v22-meal')].at(-1);const foods=meal&&meal.querySelector('.v22-foods');if(!foods)return;foods.innerHTML='';(m.foods||[]).forEach(f=>v22AddFood(foods,f.name,f.grams,f.state))})}
+  if(d.calculo&&d.calculo.estado){C=Object.assign(clone(d.calculo.estado),{uid:String(u.id),origen:'dieta vigente'});const e=delExpediente(u);C.esc=C.esc||{};C.pendExp={};EXPK.forEach(k=>{if(!C.esc[k])C.in[k]=e[k]});persistir()}
+  pintarCalc();toast('Dieta vigente cargada para editar. Al asignar se guarda como una nueva versión; la anterior queda en el historial.');
+}
+/* al elegir usuario en Dieta, trae su cálculo o su expediente */
+document.addEventListener('change',e=>{const t=e.target;if(t&&t.tagName==='SELECT'&&/diet.*user|user.*diet/i.test(t.id||'')){setTimeout(()=>{const u=selUser()||byId(t.value);if(u)abrirParaUsuario(u,true)},150)}},true);
+const oShow=window.showPage;
+window.showPage=function(id){const r=oShow?oShow.apply(this,arguments):undefined;if(id==='coachDiet')setTimeout(()=>{if($('yv74Calc')){const u=selUser();if(u)abrirParaUsuario(u,!C||C.uid!==String(u.id))}},450);return r};
+/* al asignar la dieta: cifras finales, ajustes y foto de los datos usados */
+const oAssign=window.yv42Assign;
+if(oAssign){window.yv42Assign=function(uid,type,payload){
+  if(type==='diet'&&payload&&C&&String(C.uid)===String(uid)){
+    const r=calcular(C);
+    payload=Object.assign({},payload,{calculo:{fecha:new Date().toISOString(),por:coachActual(),estado:clone(C),
+      datosUsados:clone(C.in),mantenimiento:{modo:C.mant.modo,kcal:r.get,tmb:r.bmr,formula:FORM[C.f].name},
+      calculado:clone(r.calc),final:clone(r.fin),modificados:Object.keys(C.ov).filter(k=>C.ov[k]!=null&&C.ov[k]!=='')},
+      objetivoNutricional:{kcal:r.fin.kcal,protein:r.fin.p,carbs:r.fin.c,fat:r.fin.f}});
+  }
+  const r=oAssign.call(this,uid,type,payload);if(type==='diet')setTimeout(()=>{try{pintarCalc()}catch(e){}},60);return r}}
+
+
+/* objetivo visible en el panel del cliente */
+function objetivoCliente(){
+  if(esCoach())return;const pg=$('userHome');if(!pg)return;
+  const id=sessionStorage.getItem('yayo_active_user_id');const u=byId(id);if(!u)return;
+  let el=$('yloCliente');const txt=objDef(u.objetivo)?objDef(u.objetivo).label:(u.goal||'');if(!txt){el&&el.remove();return}
+  if(!el){el=document.createElement('div');el.id='yloCliente';el.className='ylo-perfil';const h=pg.querySelector('h1,h2');(h&&h.parentElement?h.parentElement:pg).insertAdjacentElement(h?'afterend':'afterbegin',el)}
+  el.innerHTML=`Tu objetivo: <b>${esc(txt)}</b>${u.bodybuilder?' · Perfil fisiculturista':''}`;
+}
+const oShow2=window.showPage;
+window.showPage=function(id){const r=oShow2?oShow2.apply(this,arguments):undefined;if(id==='userHome')setTimeout(objetivoCliente,500);return r};
+setTimeout(objetivoCliente,2500);
+/* =====================================================================
+   E. BIBLIOTECA DE 150 RUTINAS (documento RUTINAS)
+   ===================================================================== */
+const RUT=[[1,"Principiante","Mantenimiento",1,"General equilibrado","",[["Goblet squat",2,"8-12","3",120],["Press de banca en máquina",2,"10-12","3",90],["Remo sentado en polea",2,"10-12","3",90],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Elevación de talones de pie",2,"12-15","3",60],["Dead bug",2,"10-15","3",60]]],[2,"Principiante","Mantenimiento",2,"Bisagra + tren superior","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Press inclinado con mancuernas",2,"10-12","3",90],["Jalón al pecho pronado",2,"10-12","3",90],["Step-up",2,"10-12","3",90],["Elevaciones laterales con mancuernas",2,"12-15","3",60],["Side plank",2,"20-40 s","3",60]]],[3,"Principiante","Mantenimiento",3,"Máquinas y control","",[["Prensa inclinada",2,"8-12","3",120],["Press de banca en Smith",2,"10-12","3",90],["Remo con pecho apoyado",2,"10-12","3",90],["Curl femoral en máquina",2,"12-15","3",60],["Elevaciones laterales en máquina",2,"12-15","3",60],["Crunch en máquina",2,"10-15","3",60]]],[4,"Principiante","Mantenimiento",4,"Unilateral global","",[["Zancadas",2,"8-12","3",120],["Press militar en máquina",2,"10-12","3",90],["Remo sentado con agarre neutro",2,"10-12","3",90],["Hip thrust en máquina",2,"10-12","3",90],["Curl alterno con mancuernas",2,"12-15","3",60],["Plank",2,"20-40 s","3",60]]],[5,"Principiante","Mantenimiento",5,"Mixto funcional","",[["Prensa de piernas",2,"8-12","3",120],["Flexiones con manos elevadas",2,"10-12","3",90],["Jalón al pecho neutro",2,"10-12","3",90],["Glute bridge",2,"10-12","3",90],["Elevación de talones sentado",2,"12-15","3",60],["Suitcase carry",2,"25-40 s","3",60]]],[6,"Principiante","Circuito metabólico",1,"Global alternado","2 vueltas · 30 s transición · 120 s entre vueltas",[["Prensa horizontal",2,"10-12","3-4",30],["Remo sentado en polea",2,"10-12","3-4",30],["Flexiones con manos elevadas",2,"10-12","3-4",30],["Glute bridge",2,"10-12","3-4",30],["Dead bug",2,"10-12","3-4",30]]],[7,"Principiante","Circuito metabólico",2,"Tren superior + pierna","2 vueltas · 30 s transición · 120 s entre vueltas",[["Curl femoral sentado",2,"10-12","3-4",30],["Press de banca en máquina",2,"10-12","3-4",30],["Remo en máquina",2,"10-12","3-4",30],["Goblet squat",2,"10-12","3-4",30],["Mountain climbers",2,"20-30 s","3-4",30]]],[8,"Principiante","Circuito metabólico",3,"Énfasis posterior","2 vueltas · 30 s transición · 120 s entre vueltas",[["Glute bridge unilateral",2,"10-12","3-4",30],["Jalón al pecho neutro",2,"10-12","3-4",30],["Step-up",2,"10-12","3-4",30],["Press militar en máquina",2,"10-12","3-4",30],["Plank",2,"20-30 s","3-4",30]]],[9,"Principiante","Circuito metabólico",4,"Unilateral y estabilidad","2 vueltas · 30 s transición · 120 s entre vueltas",[["Split squat",2,"10-12","3-4",30],["Flexiones",2,"10-12","3-4",30],["Curl femoral tumbado",2,"10-12","3-4",30],["Remo con pecho apoyado",2,"10-12","3-4",30],["Plank",2,"20-30 s","3-4",30]]],[10,"Principiante","Circuito metabólico",5,"Mixto de 6 estaciones","2 vueltas · 30 s transición · 120 s entre vueltas",[["Sentadilla en máquina",2,"10-12","3-4",30],["Remo sentado en polea",2,"10-12","3-4",30],["Press de banca en máquina",2,"10-12","3-4",30],["Sliding leg curl",2,"10-12","3-4",30],["Frog pumps",2,"10-12","3-4",30],["Side plank",2,"20-30 s","3-4",30]]],[11,"Principiante","Fuerza",1,"Base sentadilla + banca","",[["Goblet squat",3,"5-8","3",150],["Press de banca en máquina",2,"6-10","3",120],["Remo sentado en polea",2,"6-10","3",120],["Curl femoral sentado",2,"10-12","3",75],["Pallof press",2,"10-12","3",60]]],[12,"Principiante","Fuerza",2,"Bisagra + vertical","",[["Peso muerto rumano con mancuernas",3,"5-8","3",150],["Press militar con mancuernas",2,"6-10","3",120],["Jalón al pecho pronado",2,"6-10","3",120],["Step-up",2,"10-12","3",75],["Plank",2,"20-35 s","3",60]]],[13,"Principiante","Fuerza",3,"Empuje superior + pierna","",[["Press de banca en Smith",3,"5-8","3",150],["Sentadilla en Smith",2,"6-10","3",120],["Remo sentado en polea",2,"6-10","3",120],["Glute bridge con barra",2,"10-12","3",75],["Farmer's carry",2,"20-35 s","3",60]]],[14,"Principiante","Fuerza",4,"Dominante rodilla + tracción","",[["Prensa de piernas",3,"5-8","3",150],["Jalón al pecho supino",2,"6-10","3",120],["Press inclinado en máquina",2,"6-10","3",120],["Curl femoral unilateral",2,"10-12","3",75],["Plank",2,"20-35 s","3",60]]],[15,"Principiante","Fuerza",5,"Cadena posterior + torso","",[["Glute bridge",3,"5-8","3",150],["Peso muerto rumano con mancuernas",2,"6-10","3",120],["Press unilateral en máquina",2,"6-10","3",120],["Remo unilateral en máquina",2,"6-10","3",120],["Reverse crunch en banco",2,"10-12","3",60]]],[16,"Principiante","Lower",1,"Equilibrado de pierna","",[["Goblet squat",2,"8-12","3",120],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Split squat",2,"10-12","3",90],["Curl femoral sentado",2,"12-15","3",60],["Elevación de talones de pie",2,"12-15","3",60],["Dead bug",2,"10-15","3",60]]],[17,"Principiante","Lower",2,"Bisagra dominante","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Prensa horizontal",2,"10-12","3",90],["Hip thrust en máquina",2,"10-12","3",90],["Curl femoral tumbado",2,"12-15","3",60],["Elevación de sóleo sentado en máquina",2,"12-15","3",60],["Side plank",2,"20-40 s","3",60]]],[18,"Principiante","Lower",3,"Unilateral dominante","",[["Zancadas inversas",2,"8-12","3",120],["Sentadilla en Smith",2,"10-12","3",90],["Peso muerto rumano unilateral",2,"10-12","3",90],["Extensión de rodilla en máquina",2,"12-15","3",60],["Elevación de talones con mancuernas",2,"12-15","3",60],["Crunch en máquina",2,"10-15","3",60]]],[19,"Principiante","Lower",4,"Máquinas y estabilidad","",[["Prensa unilateral",2,"8-12","3",120],["Hip thrust en máquina",2,"10-12","3",90],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Extensión unilateral de rodilla",2,"12-15","3",60],["Curl femoral unilateral",2,"12-15","3",60],["Elevación de sóleo sentado en máquina",2,"12-15","3",60]]],[20,"Principiante","Lower",5,"Rodilla y cadera","",[["Goblet squat",2,"8-12","3",120],["Glute bridge",2,"10-12","3",90],["Zancadas",2,"10-12","3",90],["Curl femoral sentado",2,"12-15","3",60],["Abducción lateral con banda",2,"12-15","3",60],["Calf raise con peso corporal",2,"12-15","3",60]]],[21,"Principiante","Upper",1,"Empuje-tracción horizontal","",[["Press de banca en máquina",2,"8-12","3",120],["Remo sentado en polea",2,"8-12","3",120],["Press militar en máquina",2,"10-12","3",90],["Jalón al pecho neutro",2,"10-12","3",90],["Elevaciones laterales en máquina",2,"12-15","3",60],["Curl con mancuernas",2,"12-15","3",60],["Pushdown con cuerda",2,"12-15","3",60]]],[22,"Principiante","Upper",2,"Vertical equilibrado","",[["Press militar con mancuernas",2,"8-12","3",120],["Jalón al pecho pronado",2,"8-12","3",120],["Press inclinado con mancuernas",2,"10-12","3",90],["Remo en máquina",2,"10-12","3",90],["Face pull",2,"12-15","3",60],["Curl con cuerda",2,"12-15","3",60],["Extensión sobre la cabeza con polea",2,"12-15","3",60]]],[23,"Principiante","Upper",3,"Torso inclinado","",[["Press inclinado en Smith",2,"8-12","3",120],["Remo sentado en polea",2,"8-12","3",120],["Press de banca en Smith",2,"10-12","3",90],["Jalón con brazos rectos",2,"10-12","3",90],["Aperturas en máquina",2,"12-15","3",60],["Elevaciones laterales en máquina",2,"12-15","3",60],["Curl con barra EZ",2,"12-15","3",60],["Pushdown con barra",2,"12-15","3",60]]],[24,"Principiante","Upper",4,"Control escapular","",[["Remo sentado con agarre neutro",2,"8-12","3",120],["Press de banca en máquina",2,"8-12","3",120],["Jalón al pecho supino",2,"10-12","3",90],["Press militar en máquina",2,"10-12","3",90],["Reverse fly en máquina",2,"12-15","3",60],["Aperturas con mancuernas",2,"12-15","3",60],["Curl martillo",2,"12-15","3",60],["Extensión de tríceps en máquina",2,"12-15","3",60]]],[25,"Principiante","Upper",5,"Torso bilateral y unilateral","",[["Flexiones con manos elevadas",2,"8-12","3",120],["Jalón al pecho neutro",2,"8-12","3",120],["Remo unilateral en máquina",2,"10-12","3",90],["Press inclinado con mancuernas",2,"10-12","3",90],["Elevaciones laterales en polea",2,"12-15","3",60],["Pájaros en máquina",2,"12-15","3",60],["Curl de pie en polea",2,"12-15","3",60],["Extensión unilateral con mancuerna",2,"12-15","3",60]]],[26,"Principiante","Full Body",1,"Global base","",[["Goblet squat",2,"8-12","3",120],["Press de banca en máquina",2,"8-12","3",120],["Remo sentado en polea",2,"10-12","3",90],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Elevaciones laterales en máquina",2,"12-15","3",60],["Dead bug",2,"10-15","3",60]]],[27,"Principiante","Full Body",2,"Posterior y vertical","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Press militar con mancuernas",2,"8-12","3",120],["Jalón al pecho pronado",2,"10-12","3",90],["Step-up",2,"10-12","3",90],["Elevación de talones en prensa",2,"12-15","3",60],["Side plank",2,"20-40 s","3",60]]],[28,"Principiante","Full Body",3,"Glúteo + torso","",[["Glute bridge con barra",2,"8-12","3",120],["Press inclinado en Smith",2,"8-12","3",120],["Remo sentado en polea",2,"10-12","3",90],["Sentadilla en Smith",2,"10-12","3",90],["Curl femoral en máquina",2,"12-15","3",60],["Crunch en máquina",2,"10-15","3",60]]],[29,"Principiante","Full Body",4,"Unilateral y control","",[["Split squat",2,"8-12","3",120],["Remo sentado con agarre neutro",2,"8-12","3",120],["Flexiones",2,"10-12","3",90],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Reverse fly en máquina",2,"12-15","3",60],["Plank",2,"20-40 s","3",60]]],[30,"Principiante","Full Body",5,"Global en máquinas","",[["Prensa de piernas",2,"8-12","3",120],["Flexiones con manos elevadas",2,"8-12","3",120],["Jalón al pecho neutro",2,"10-12","3",90],["Curl femoral sentado",2,"10-12","3",90],["Abducción lateral con banda",2,"12-15","3",60],["Pushdown con cuerda",2,"12-15","3",60],["Reverse crunch en banco",2,"10-15","3",60]]],[31,"Principiante","Push",1,"Pectoral horizontal","",[["Press de banca en máquina",2,"8-12","3",120],["Press inclinado en máquina",2,"10-12","3",90],["Press militar en máquina",2,"10-12","3",90],["Aperturas en máquina",2,"12-15","3",60],["Elevaciones laterales en máquina",2,"12-15","3",60],["Pushdown con cuerda",2,"12-15","3",60]]],[32,"Principiante","Push",2,"Hombro dominante","",[["Press militar con mancuernas",2,"8-12","3",120],["Press de banca con mancuernas",2,"10-12","3",90],["Press inclinado con mancuernas",2,"10-12","3",90],["Elevaciones laterales con mancuernas",2,"12-15","3",60],["Extensión sobre la cabeza con polea",2,"12-15","3",60],["Aperturas en poleas",2,"12-15","3",60]]],[33,"Principiante","Push",3,"Pectoral superior","",[["Press inclinado en Smith",2,"8-12","3",120],["Press de banca en Smith",2,"10-12","3",90],["Press militar en Smith",2,"10-12","3",90],["Aperturas en máquina",2,"12-15","3",60],["Elevaciones laterales en máquina",2,"12-15","3",60],["Pushdown con barra",2,"12-15","3",60]]],[34,"Principiante","Push",4,"Empujes y accesorios","",[["Flexiones",2,"8-12","3",120],["Press de banca en máquina",2,"10-12","3",90],["Press militar en máquina",2,"10-12","3",90],["Elevaciones laterales con mancuernas",2,"12-15","3",60],["Extensión sobre la cabeza con cuerda",2,"12-15","3",60],["Aperturas con mancuernas",2,"12-15","3",60]]],[35,"Principiante","Push",5,"Mixto estable","",[["Flexiones con manos elevadas",2,"8-12","3",120],["Press unilateral en máquina",2,"10-12","3",90],["Press inclinado con mancuernas",2,"10-12","3",90],["Elevaciones laterales en polea",2,"12-15","3",60],["Cruce de poleas medio a medio",2,"12-15","3",60],["Extensión unilateral con mancuerna",2,"12-15","3",60]]],[36,"Principiante","Pull",1,"Remo dominante","",[["Remo con pecho apoyado",2,"8-12","3",120],["Jalón al pecho neutro",2,"10-12","3",90],["Remo sentado en polea",2,"10-12","3",90],["Pájaros en máquina",2,"12-15","3",60],["Curl con mancuernas",2,"12-15","3",60],["Curl martillo",2,"12-15","3",60]]],[37,"Principiante","Pull",2,"Jalón dominante","",[["Jalón al pecho pronado",2,"8-12","3",120],["Remo en máquina",2,"10-12","3",90],["Pullover en máquina",2,"10-12","3",90],["Face pull",2,"12-15","3",60],["Curl martillo",2,"12-15","3",60],["Curl con cuerda",2,"12-15","3",60]]],[38,"Principiante","Pull",3,"Espalda media + brazos","",[["Remo con pecho apoyado",2,"8-12","3",120],["Pulldown en máquina",2,"10-12","3",90],["Remo sentado en polea",2,"10-12","3",90],["Pájaros con mancuernas",2,"12-15","3",60],["Curl con barra EZ",2,"12-15","3",60],["Curl martillo cruzado",2,"12-15","3",60]]],[39,"Principiante","Pull",4,"Dorsal y control","",[["Jalón al pecho supino",2,"8-12","3",120],["Remo sentado con agarre neutro",2,"10-12","3",90],["Pullover con polea",2,"10-12","3",90],["Reverse fly en máquina",2,"12-15","3",60],["Curl alterno con mancuernas",2,"12-15","3",60],["Farmer's walk",2,"25-40 s","3",60]]],[40,"Principiante","Pull",5,"Tirón variado","",[["Remo en máquina",2,"8-12","3",120],["Jalón al pecho neutro",2,"10-12","3",90],["Remo unilateral en máquina",2,"10-12","3",90],["Pájaros en máquina",2,"12-15","3",60],["Curl con cuerda",2,"12-15","3",60],["Pallof press unilateral",2,"10-15","3",60]]],[41,"Principiante","Legs",1,"Cuádriceps dominante","",[["Goblet squat con talones elevados",2,"8-12","3",120],["Prensa de piernas",2,"10-12","3",90],["Split squat",2,"10-12","3",90],["Extensión de rodilla en máquina",2,"12-15","3",60],["Curl femoral sentado",2,"12-15","3",60],["Elevación de talones de pie",2,"12-15","3",60]]],[42,"Principiante","Legs",2,"Isquios dominante","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Curl femoral tumbado",2,"10-12","3",90],["Sentadilla en máquina",2,"10-12","3",90],["Extensión unilateral de rodilla",2,"12-15","3",60],["Elevación de sóleo sentado en máquina",2,"12-15","3",60],["Plank",2,"20-40 s","3",60]]],[43,"Principiante","Legs",3,"Rodilla unilateral","",[["Zancadas inversas",2,"8-12","3",120],["Prensa inclinada",2,"10-12","3",90],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Extensión de rodilla en máquina",2,"12-15","3",60],["Elevación de talones con mancuernas",2,"12-15","3",60],["Curl femoral en máquina",2,"12-15","3",60]]],[44,"Principiante","Legs",4,"Anterior + posterior","",[["Goblet squat con talones elevados",2,"8-12","3",120],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Prensa unilateral",2,"10-12","3",90],["Curl femoral unilateral",2,"12-15","3",60],["Extensión unilateral de rodilla",2,"12-15","3",60],["Elevación de sóleo sentado en máquina",2,"12-15","3",60]]],[45,"Principiante","Legs",5,"Máquinas de pierna","",[["Prensa de piernas",2,"8-12","3",120],["Goblet squat",2,"10-12","3",90],["Curl femoral sentado",2,"10-12","3",90],["Extensión de rodilla en máquina",2,"12-15","3",60],["Calf raise con peso corporal",2,"12-15","3",60],["Elevación de talones sentado",2,"12-15","3",60]]],[46,"Principiante","Glúteos",1,"Extensión de cadera","",[["Glute bridge",2,"8-12","3",120],["Peso muerto rumano con mancuernas",2,"10-12","3",90],["Split squat",2,"10-12","3",90],["Patada de glúteo en máquina",2,"12-20","3",60],["Abducción de cadera en máquina",2,"12-20","3",60]]],[47,"Principiante","Glúteos",2,"Posterior + unilateral","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Hip thrust en máquina",2,"10-12","3",90],["Step-up",2,"10-12","3",90],["Patada de glúteo en polea",2,"12-20","3",60],["Abducción lateral con banda",2,"12-20","3",60]]],[48,"Principiante","Glúteos",3,"Puente + amplitud","",[["Glute bridge con barra",2,"8-12","3",120],["Sentadilla en Smith",2,"10-12","3",90],["Peso muerto rumano unilateral",2,"10-12","3",90],["Abducción de cadera en máquina",2,"12-20","3",60],["Pull-through en polea",2,"12-20","3",60]]],[49,"Principiante","Glúteos",4,"Estabilidad de pelvis","",[["Glute bridge unilateral",2,"8-12","3",120],["Hip thrust en máquina",2,"10-12","3",90],["Split squat",2,"10-12","3",90],["Fire hydrant",2,"12-20","3",60],["Curl femoral unilateral",2,"12-20","3",60]]],[50,"Principiante","Glúteos",5,"Cadena posterior completa","",[["Peso muerto rumano con mancuernas",2,"8-12","3",120],["Glute bridge",2,"10-12","3",90],["Split squat",2,"10-12","3",90],["Frog pumps",2,"12-20","3",60],["Abducción lateral con banda",2,"12-20","3",60],["Curl femoral sentado",2,"12-20","3",60]]],[51,"Intermedio","Mantenimiento",1,"General equilibrado","",[["Sentadilla frontal",2,"6-12","3",120],["Press de banca en Smith",2,"8-12","3",90],["Remo sentado unilateral",2,"8-12","3",90],["Peso muerto con piernas rígidas",2,"8-12","3",90],["Elevación de talones de pie en Smith",2,"10-15","3",60],["Elevación de rodillas en paralelas",2,"10-15","2",60]]],[52,"Intermedio","Mantenimiento",2,"Bisagra + tren superior","",[["Peso muerto rumano con barra",2,"6-12","3",120],["Press inclinado en Smith",2,"8-12","3",90],["Jalón al pecho neutro",2,"8-12","3",90],["Step-up",2,"8-12","3",90],["Elevaciones laterales inclinadas",2,"10-15","3",60],["RKC plank",2,"20-40 s","2",60]]],[53,"Intermedio","Mantenimiento",3,"Máquinas y control","",[["Prensa inclinada",2,"6-12","3",120],["Press horizontal en poleas",2,"8-12","3",90],["Remo sentado con agarre amplio",2,"8-12","3",90],["Curl femoral en máquina",2,"10-15","3",60],["Elevaciones laterales unilaterales en polea",2,"10-15","3",60],["Side plank",2,"20-40 s","2",60]]],[54,"Intermedio","Mantenimiento",4,"Unilateral global","",[["Bulgarian split squat",2,"6-12","3",120],["Press militar con mancuernas",2,"8-12","3",90],["Remo con barra",2,"8-12","3",90],["Hip thrust con barra",2,"8-12","3",90],["Curl con barra EZ",2,"10-15","3",60],["Pallof press unilateral",2,"10-15","2",60]]],[55,"Intermedio","Mantenimiento",5,"Mixto funcional","",[["Sentadilla hack",2,"6-12","3",120],["Flexiones con pies elevados",2,"8-12","3",90],["Dominadas asistidas",2,"8-12","3",90],["Hip thrust en máquina",2,"8-12","3",90],["Elevación de sóleo en Smith",2,"10-15","3",60],["Suitcase carry",2,"25-40 s","2",60]]],[56,"Intermedio","Circuito metabólico",1,"Global alternado","3 vueltas · 20 s transición · 90 s entre vueltas",[["Zancadas inversas",3,"10-15","2-3",20],["Remo invertido en TRX",3,"10-15","2-3",20],["Press militar con mancuernas",3,"10-15","2-3",20],["Glute bridge unilateral",3,"10-15","2-3",20],["Pallof press",3,"10-15","2-3",20]]],[57,"Intermedio","Circuito metabólico",2,"Tren superior + pierna","3 vueltas · 20 s transición · 90 s entre vueltas",[["Curl femoral tumbado",3,"10-15","2-3",20],["Flexiones con pies elevados",3,"10-15","2-3",20],["Remo con pecho apoyado",3,"10-15","2-3",20],["Sentadilla en Smith",3,"10-15","2-3",20],["Reverse crunch en banco",3,"10-15","2-3",20]]],[58,"Intermedio","Circuito metabólico",3,"Énfasis posterior","3 vueltas · 20 s transición · 90 s entre vueltas",[["Frog pumps",3,"10-15","2-3",20],["Remo sentado en polea",3,"10-15","2-3",20],["Prensa horizontal",3,"10-15","2-3",20],["Press inclinado en máquina",3,"10-15","2-3",20],["Bear crawl",3,"25-35 s","2-3",20]]],[59,"Intermedio","Circuito metabólico",4,"Unilateral y estabilidad","3 vueltas · 20 s transición · 90 s entre vueltas",[["Goblet squat",3,"10-15","2-3",20],["Flexiones",3,"10-15","2-3",20],["Sliding leg curl",3,"10-15","2-3",20],["Remo sentado en polea",3,"10-15","2-3",20],["Pallof press unilateral",3,"10-15","2-3",20]]],[60,"Intermedio","Circuito metabólico",5,"Mixto de 6 estaciones","3 vueltas · 20 s transición · 90 s entre vueltas",[["Step-up",3,"10-15","2-3",20],["Jalón al pecho neutro",3,"10-15","2-3",20],["Press de banca en máquina",3,"10-15","2-3",20],["Curl femoral sentado",3,"10-15","2-3",20],["Abducción lateral con banda",3,"10-15","2-3",20],["Plank",3,"25-40 s","2-3",20]]],[61,"Intermedio","Fuerza",1,"Base sentadilla + banca","",[["Sentadilla frontal",4,"3-6","2",180],["Press de banca en Smith",3,"5-8","2",150],["Remo sentado unilateral",3,"5-8","2",150],["Curl femoral unilateral",2,"8-12","2",90],["Copenhagen plank",2,"20-40 s","2",75]]],[62,"Intermedio","Fuerza",2,"Bisagra + vertical","",[["Peso muerto rumano con barra",4,"3-6","2",180],["Press Arnold",3,"5-8","2",150],["Jalón al pecho neutro",3,"5-8","2",150],["Step-up",2,"8-12","2",90],["Ab wheel rollout",2,"10-15","2",75]]],[63,"Intermedio","Fuerza",3,"Empuje superior + pierna","",[["Press horizontal en poleas",4,"3-6","2",180],["Sentadilla en Smith",3,"5-8","2",150],["Remo sentado unilateral",3,"5-8","2",150],["Hip thrust con barra",2,"8-12","2",90],["Suitcase carry",2,"25-40 s","2",75]]],[64,"Intermedio","Fuerza",4,"Dominante rodilla + tracción","",[["Sentadilla hack",4,"3-6","2",180],["Jalón al pecho pronado",3,"5-8","2",150],["Press inclinado con mancuernas",3,"5-8","2",150],["Curl femoral sentado",2,"8-12","2",90],["Pallof press unilateral",2,"10-15","2",75]]],[65,"Intermedio","Fuerza",5,"Cadena posterior + torso","",[["Hip thrust en máquina",4,"3-6","2",180],["Peso muerto rumano con mancuernas",3,"5-8","2",150],["Press militar con barra",3,"5-8","2",150],["Remo unilateral con mancuerna",3,"5-8","2",150],["Crunch en polea",2,"10-15","2",75]]],[66,"Intermedio","Lower",1,"Equilibrado de pierna","",[["Sentadilla frontal",3,"6-10","2",150],["Peso muerto con piernas rígidas",3,"8-12","2",120],["Zancadas en Smith",3,"8-12","2",120],["Curl femoral unilateral",2,"10-15","2",75],["Elevación de talones de pie en Smith",2,"10-15","2",75],["Elevación de rodillas en paralelas",2,"10-15","2",60]]],[67,"Intermedio","Lower",2,"Bisagra dominante","",[["Peso muerto rumano con barra",3,"6-10","2",150],["Prensa horizontal",3,"8-12","2",120],["Glute bridge con barra",3,"8-12","2",120],["Curl femoral de pie",2,"10-15","2",75],["Elevación de sóleo con barra",2,"10-15","2",75],["RKC plank",2,"20-40 s","2",60]]],[68,"Intermedio","Lower",3,"Unilateral dominante","",[["Bulgarian split squat",3,"6-10","2",150],["Sentadilla en Smith",3,"8-12","2",120],["Peso muerto rumano unilateral",3,"8-12","2",120],["Extensión de rodilla en máquina",2,"10-15","2",75],["Donkey calf raise",2,"10-15","2",75],["Side plank",2,"20-40 s","2",60]]],[69,"Intermedio","Lower",4,"Máquinas y estabilidad","",[["Prensa inclinada",3,"6-10","2",150],["Hip thrust con barra",3,"8-12","2",120],["Peso muerto rumano con barra",3,"8-12","2",120],["Extensión unilateral de rodilla",2,"10-15","2",75],["Curl femoral sentado",2,"10-15","2",75],["Elevación de sóleo sentado en máquina",2,"10-15","2",75]]],[70,"Intermedio","Lower",5,"Rodilla y cadera","",[["Sentadilla frontal",3,"6-10","2",150],["Hip thrust en máquina",3,"8-12","2",120],["Reverse lunge",3,"8-12","2",120],["Curl femoral tumbado",2,"10-15","2",75],["Abducción de cadera en polea",2,"10-15","2",75],["Elevación de talones en prensa",2,"10-15","2",75]]],[71,"Intermedio","Upper",1,"Empuje-tracción horizontal","",[["Press de banca en Smith",3,"6-10","2",150],["Remo sentado unilateral",3,"6-10","2",150],["Press militar en máquina",3,"8-12","2",120],["Jalón unilateral",3,"8-12","2",120],["Elevaciones laterales en máquina",2,"10-15","2",75],["Curl predicador en máquina",2,"10-15","2",75],["Extensión de tríceps en polea",2,"10-15","2",75]]],[72,"Intermedio","Upper",2,"Vertical equilibrado","",[["Press Arnold",3,"6-10","2",150],["Jalón al pecho neutro",3,"6-10","2",150],["Press inclinado en Smith",3,"8-12","2",120],["Remo unilateral en máquina",3,"8-12","2",120],["Reverse fly en máquina",2,"10-15","2",75],["Curl con cuerda",2,"10-15","2",75],["Extensión unilateral con mancuerna",2,"10-15","2",75]]],[73,"Intermedio","Upper",3,"Torso inclinado","",[["Press inclinado con mancuernas",3,"6-10","2",150],["Remo sentado unilateral",3,"6-10","2",150],["Press horizontal en poleas",3,"8-12","2",120],["Jalón con brazos rectos",3,"8-12","2",120],["Aperturas inclinadas con mancuernas",2,"10-15","2",75],["Elevaciones laterales unilaterales en polea",2,"10-15","2",75],["Curl martillo",2,"10-15","2",75],["Pushdown con barra",2,"10-15","2",75]]],[74,"Intermedio","Upper",4,"Control escapular","",[["Remo con pecho apoyado",3,"6-10","2",150],["Press de banca con barra",3,"6-10","2",150],["Jalón al pecho pronado",3,"8-12","2",120],["Press militar con mancuernas",3,"8-12","2",120],["Reverse fly en polea",2,"10-15","2",75],["Aperturas en poleas",2,"10-15","2",75],["Curl martillo",2,"10-15","2",75],["Pushdown con cuerda",2,"10-15","2",75]]],[75,"Intermedio","Upper",5,"Torso bilateral y unilateral","",[["Press de banca con mancuernas",3,"6-10","2",150],["Dominadas asistidas",3,"6-10","2",150],["Remo unilateral con mancuerna",3,"8-12","2",120],["Press inclinado con barra",3,"8-12","2",120],["Elevaciones laterales con mancuernas",2,"10-15","2",75],["Face pull",2,"10-15","2",75],["Curl inclinado con mancuernas",2,"10-15","2",75],["Extensión sobre la cabeza con cuerda",2,"10-15","2",75]]],[76,"Intermedio","Full Body",1,"Global base","",[["Sentadilla frontal",3,"6-10","2",150],["Press de banca en Smith",3,"6-10","2",150],["Remo sentado unilateral",3,"8-12","2",120],["Peso muerto con piernas rígidas",3,"8-12","2",120],["Elevaciones laterales en máquina",2,"10-15","2",75],["Elevación de rodillas en paralelas",2,"10-15","2",60]]],[77,"Intermedio","Full Body",2,"Posterior y vertical","",[["Peso muerto rumano con barra",3,"6-10","2",150],["Press Arnold",3,"6-10","2",150],["Jalón al pecho neutro",3,"8-12","2",120],["Step-up",3,"8-12","2",120],["Elevación unilateral de talón",2,"10-15","2",75],["RKC plank",2,"20-40 s","2",60]]],[78,"Intermedio","Full Body",3,"Glúteo + torso","",[["Hip thrust con barra",3,"6-10","2",150],["Press inclinado con mancuernas",3,"6-10","2",150],["Remo sentado unilateral",3,"8-12","2",120],["Sentadilla en Smith",3,"8-12","2",120],["Curl femoral en máquina",2,"10-15","2",75],["Side plank",2,"20-40 s","2",60]]],[79,"Intermedio","Full Body",4,"Unilateral y control","",[["Step-up",3,"6-10","2",150],["Remo con pecho apoyado",3,"6-10","2",150],["Flexiones",3,"8-12","2",120],["Peso muerto rumano unilateral",3,"8-12","2",120],["Reverse fly en polea",2,"10-15","2",75],["Pallof press unilateral",2,"10-15","2",60]]],[80,"Intermedio","Full Body",5,"Global en máquinas","",[["Prensa unilateral",3,"6-10","2",150],["Press de banca con mancuernas",3,"6-10","2",150],["Dominadas asistidas",3,"8-12","2",120],["Curl femoral tumbado",3,"8-12","2",120],["Abducción de cadera en polea",2,"10-15","2",75],["Extensión sobre la cabeza con cuerda",2,"10-15","2",75],["Crunch en polea",2,"10-15","2",60]]],[81,"Intermedio","Push",1,"Pectoral horizontal","",[["Press de banca en Smith",3,"6-10","2",150],["Press inclinado en máquina",3,"8-12","2",120],["Press militar en máquina",3,"8-12","2",120],["Aperturas en máquina",2,"10-15","2",75],["Elevaciones laterales en máquina",2,"10-15","2",75],["Extensión de tríceps en polea",2,"10-15","2",75]]],[82,"Intermedio","Push",2,"Hombro dominante","",[["Press Arnold",3,"6-10","2",150],["Press de banca en máquina",3,"8-12","2",120],["Press inclinado en Smith",3,"8-12","2",120],["Elevaciones laterales inclinadas",2,"10-15","2",75],["Extensión unilateral con mancuerna",2,"10-15","2",75],["Cruce de poleas bajo a alto",2,"10-15","2",75]]],[83,"Intermedio","Push",3,"Pectoral superior","",[["Press inclinado con mancuernas",3,"6-10","2",150],["Press horizontal en poleas",3,"8-12","2",120],["Press militar en Smith",3,"8-12","2",120],["Aperturas inclinadas con mancuernas",2,"10-15","2",75],["Elevaciones laterales unilaterales en polea",2,"10-15","2",75],["Pushdown con barra",2,"10-15","2",75]]],[84,"Intermedio","Push",4,"Empujes y accesorios","",[["Flexiones",3,"6-10","2",150],["Press de banca con barra",3,"8-12","2",120],["Press militar con mancuernas",3,"8-12","2",120],["Elevaciones laterales en polea",2,"10-15","2",75],["Extensión sobre la cabeza con polea",2,"10-15","2",75],["Aperturas en poleas",2,"10-15","2",75]]],[85,"Intermedio","Push",5,"Mixto estable","",[["Press de banca con mancuernas",3,"6-10","2",150],["Press militar con barra",3,"8-12","2",120],["Press inclinado con barra",3,"8-12","2",120],["Elevaciones laterales con mancuernas",2,"10-15","2",75],["Cruce de poleas alto a bajo",2,"10-15","2",75],["Extensión sobre la cabeza con cuerda",2,"10-15","2",75]]],[86,"Intermedio","Pull",1,"Remo dominante","",[["Remo en T-bar",3,"6-10","2",150],["Jalón unilateral",3,"8-12","2",120],["Remo sentado unilateral",3,"8-12","2",120],["Pájaros en polea",2,"10-15","2",75],["Curl predicador en máquina",2,"10-15","2",75],["Zottman curl",2,"10-15","2",75]]],[87,"Intermedio","Pull",2,"Jalón dominante","",[["Jalón al pecho neutro",3,"6-10","2",150],["Remo en T-bar",3,"8-12","2",120],["Pullover con polea",3,"8-12","2",120],["Reverse fly en máquina",2,"10-15","2",75],["Curl bayesiano en polea",2,"10-15","2",75],["Curl con cuerda",2,"10-15","2",75]]],[88,"Intermedio","Pull",3,"Espalda media + brazos","",[["Remo sentado con agarre amplio",3,"6-10","2",150],["Jalón al pecho supino",3,"8-12","2",120],["Remo sentado unilateral",3,"8-12","2",120],["Elevaciones posteriores con mancuernas",2,"10-15","2",75],["Curl martillo",2,"10-15","2",75],["Reverse curl",2,"10-15","2",75]]],[89,"Intermedio","Pull",4,"Dorsal y control","",[["Jalón al pecho pronado",3,"6-10","2",150],["Remo con barra",3,"8-12","2",120],["Pullover con polea",3,"8-12","2",120],["Reverse fly en polea",2,"10-15","2",75],["Curl con barra EZ",2,"10-15","2",75],["Farmer's walk",2,"25-40 s","2",60]]],[90,"Intermedio","Pull",5,"Tirón variado","",[["Remo con pecho apoyado",3,"6-10","2",150],["Dominadas asistidas",3,"8-12","2",120],["Remo unilateral con mancuerna",3,"8-12","2",120],["Face pull",2,"10-15","2",75],["Curl martillo cruzado",2,"10-15","2",75],["Side plank",2,"20-40 s","2",60]]],[91,"Intermedio","Legs",1,"Cuádriceps dominante","",[["Sentadilla high-bar",3,"6-10","2",150],["Prensa de piernas",3,"8-12","2",120],["Zancadas en Smith",3,"8-12","2",120],["Extensión de rodilla en polea",2,"10-15","2",75],["Curl femoral unilateral",2,"10-15","2",75],["Elevación de talones de pie en Smith",2,"10-15","2",75]]],[92,"Intermedio","Legs",2,"Isquios dominante","",[["Peso muerto rumano con barra",3,"6-10","2",150],["Curl femoral de pie",3,"8-12","2",120],["Belt squat",3,"8-12","2",120],["Extensión unilateral de rodilla",2,"10-15","2",75],["Elevación de sóleo con barra",2,"10-15","2",75],["Ab wheel rollout",2,"10-15","2",60]]],[93,"Intermedio","Legs",3,"Rodilla unilateral","",[["Bulgarian split squat",3,"6-10","2",150],["Prensa inclinada",3,"8-12","2",120],["Peso muerto rumano con mancuernas",3,"8-12","2",120],["Extensión de rodilla en máquina",2,"10-15","2",75],["Donkey calf raise",2,"10-15","2",75],["Curl femoral en máquina",2,"10-15","2",75]]],[94,"Intermedio","Legs",4,"Anterior + posterior","",[["Sentadilla con barra",3,"6-10","2",150],["Peso muerto rumano con barra",3,"8-12","2",120],["Prensa inclinada",3,"8-12","2",120],["Curl femoral sentado",2,"10-15","2",75],["Extensión unilateral de rodilla",2,"10-15","2",75],["Elevación de sóleo sentado en máquina",2,"10-15","2",75]]],[95,"Intermedio","Legs",5,"Máquinas de pierna","",[["Prensa unilateral",3,"6-10","2",150],["Sentadilla frontal",3,"8-12","2",120],["Curl femoral tumbado",3,"8-12","2",120],["Extensión de rodilla en máquina",2,"10-15","2",75],["Elevación de talones en prensa",2,"10-15","2",75],["Elevación de sóleo en Smith",2,"10-15","2",75]]],[96,"Intermedio","Glúteos",1,"Extensión de cadera","",[["Hip thrust en Smith",3,"6-10","2",150],["Peso muerto con piernas rígidas",3,"8-12","2",120],["Zancadas en Smith",3,"8-12","2",120],["Pull-through en polea",3,"12-20","2",75],["Abducción lateral con banda",3,"12-20","2",75]]],[97,"Intermedio","Glúteos",2,"Posterior + unilateral","",[["Peso muerto rumano con barra",3,"6-10","2",150],["Glute bridge con barra",3,"8-12","2",120],["B-stance hip thrust",3,"8-12","2",120],["Patada de glúteo en máquina",3,"12-20","2",75],["Abducción de cadera en máquina",3,"12-20","2",75]]],[98,"Intermedio","Glúteos",3,"Puente + amplitud","",[["Hip thrust con barra",3,"6-10","2",150],["Sentadilla en Smith",3,"8-12","2",120],["Peso muerto rumano unilateral",3,"8-12","2",120],["Abducción de cadera en polea",3,"12-20","2",75],["Back extension a 45°",3,"12-20","2",75]]],[99,"Intermedio","Glúteos",4,"Estabilidad de pelvis","",[["Hip thrust unilateral",3,"6-10","2",150],["Hip thrust con barra",3,"8-12","2",120],["Step-up",3,"8-12","2",120],["Abducción de cadera en máquina",3,"12-20","2",75],["Curl femoral sentado",3,"12-20","2",75]]],[100,"Intermedio","Glúteos",5,"Cadena posterior completa","",[["Peso muerto rumano con mancuernas",3,"6-10","2",150],["Hip thrust en máquina",3,"8-12","2",120],["Zancadas caminando",3,"8-12","2",120],["Back extension con sesgo a glúteo",3,"12-20","2",75],["Abducción de cadera en polea",3,"12-20","2",75],["Curl femoral tumbado",3,"12-20","2",75]]],[101,"Avanzado","Mantenimiento",1,"General equilibrado","",[["Sentadilla hack",3,"6-12","2-3",150],["Press de banca con barra",2,"8-12","2-3",90],["Remo en máquina",2,"8-12","2-3",90],["Peso muerto rumano con barra",2,"8-12","2-3",90],["Elevación de talones de pie en máquina",2,"10-15","2-3",75],["Hanging windshield wipers",2,"10-15","3",60]]],[102,"Avanzado","Mantenimiento",2,"Bisagra + tren superior","",[["Peso muerto rumano con barra",3,"6-12","2-3",150],["Press inclinado con barra",2,"8-12","2-3",90],["Dominadas pronadas",2,"8-12","2-3",90],["Bulgarian split squat en Smith",2,"8-12","2-3",90],["Elevaciones laterales unilaterales en polea",2,"10-15","2-3",75],["Pallof press unilateral",2,"10-15","3",60]]],[103,"Avanzado","Mantenimiento",3,"Máquinas y control","",[["Prensa inclinada",3,"6-12","2-3",150],["Press de banca en Smith",2,"8-12","2-3",90],["Remo unilateral con mancuerna",2,"8-12","2-3",90],["Curl femoral tumbado",2,"10-15","2-3",75],["Elevaciones laterales inclinadas",2,"10-15","2-3",75],["Elevación de piernas colgado",2,"10-15","3",60]]],[104,"Avanzado","Mantenimiento",4,"Unilateral global","",[["Bulgarian split squat",3,"6-12","2-3",150],["Press Arnold",2,"8-12","2-3",90],["T-bar row con pecho apoyado",2,"8-12","2-3",90],["Hip thrust en máquina",2,"8-12","2-3",90],["Curl spider",2,"10-15","2-3",75],["RKC plank",2,"20-40 s","3",60]]],[105,"Avanzado","Mantenimiento",5,"Mixto funcional","",[["Belt squat",3,"6-12","2-3",150],["Flexiones diamante",2,"8-12","2-3",90],["Dominadas lastradas",2,"8-12","2-3",90],["B-stance hip thrust",2,"8-12","2-3",90],["Elevación de sóleo sentado en máquina",2,"10-15","2-3",75],["Suitcase carry",2,"25-40 s","3",60]]],[106,"Avanzado","Circuito metabólico",1,"Global alternado","4 vueltas · 20 s transición · 90 s entre vueltas",[["Sentadilla en Smith",4,"12-15","2",20],["Remo invertido en TRX",4,"12-15","2",20],["Press de banca en máquina",4,"12-15","2",20],["Frog pumps",4,"12-15","2",20],["Side plank",4,"30-45 s","2",20]]],[107,"Avanzado","Circuito metabólico",2,"Tren superior + pierna","4 vueltas · 20 s transición · 90 s entre vueltas",[["Sliding leg curl",4,"12-15","2",20],["Flexiones",4,"12-15","2",20],["Remo invertido",4,"12-15","2",20],["Goblet squat",4,"12-15","2",20],["Mountain climbers",4,"30-40 s","2",20]]],[108,"Avanzado","Circuito metabólico",3,"Énfasis posterior","4 vueltas · 20 s transición · 90 s entre vueltas",[["Abducción de cadera en polea",4,"12-15","2",20],["Remo con pecho apoyado",4,"12-15","2",20],["Step-up alto",4,"12-15","2",20],["Press inclinado con mancuernas",4,"12-15","2",20],["Bear crawl",4,"30-40 s","2",20]]],[109,"Avanzado","Circuito metabólico",4,"Unilateral y estabilidad","4 vueltas · 20 s transición · 90 s entre vueltas",[["Zancadas caminando",4,"12-15","2",20],["Press militar con mancuernas",4,"12-15","2",20],["Stability ball leg curl",4,"12-15","2",20],["Jalón al pecho pronado",4,"12-15","2",20],["RKC plank",4,"12-15","2",20]]],[110,"Avanzado","Circuito metabólico",5,"Mixto de 6 estaciones","4 vueltas · 20 s transición · 90 s entre vueltas",[["Bulgarian split squat",4,"12-15","2",20],["Remo sentado unilateral",4,"12-15","2",20],["Flexiones con pies elevados",4,"12-15","2",20],["Curl femoral tumbado",4,"12-15","2",20],["Patada de glúteo en máquina",4,"12-15","2",20],["Ab wheel rollout",4,"12-15","2",20]]],[111,"Avanzado","Fuerza",1,"Base sentadilla + banca","",[["Sentadilla hack",4,"2-5","1-2",240],["Press de banca con barra",3,"4-7","2",180],["Remo en máquina",3,"4-7","2",180],["Curl femoral con polea",3,"8-12","2",90],["Side plank con carga",3,"20-40 s","2",75]]],[112,"Avanzado","Fuerza",2,"Bisagra + vertical","",[["Peso muerto rumano con barra",4,"2-5","1-2",240],["Press militar con barra",3,"4-7","2",180],["Dominadas pronadas",3,"4-7","2",180],["Bulgarian split squat en Smith",3,"8-12","2",90],["Ab wheel rollout",3,"10-15","2",75]]],[113,"Avanzado","Fuerza",3,"Empuje superior + pierna","",[["Press de banca en Smith",4,"2-5","1-2",240],["Sentadilla high-bar",3,"4-7","2",180],["Remo con barra",3,"4-7","2",180],["Hip thrust en Smith",3,"8-12","2",90],["Suitcase carry",3,"25-40 s","2",75]]],[114,"Avanzado","Fuerza",4,"Dominante rodilla + tracción","",[["Sentadilla hack",4,"2-5","1-2",240],["Dominadas supinas",3,"4-7","2",180],["Press inclinado en Smith",3,"4-7","2",180],["Nordic asistido",3,"4-8","2",180],["RKC plank",3,"20-40 s","2",75]]],[115,"Avanzado","Fuerza",5,"Cadena posterior + torso","",[["B-stance hip thrust",4,"2-5","1-2",240],["Good morning",3,"4-7","2",180],["Press militar en Smith",3,"4-7","2",180],["Remo sentado unilateral",3,"4-7","2",180],["Crunch en polea",3,"10-15","2",75]]],[116,"Avanzado","Lower",1,"Equilibrado de pierna","",[["Sentadilla hack",3,"6-10","1-2",180],["Peso muerto rumano con barra",3,"8-12","1-2",120],["Reverse lunge",3,"8-12","1-2",120],["Curl femoral con polea",3,"10-15","1-2",90],["Elevación de talones de pie en máquina",3,"10-15","1-2",90],["Hanging windshield wipers",3,"10-15","2",75]]],[117,"Avanzado","Lower",2,"Bisagra dominante","",[["Peso muerto rumano con barra",3,"6-10","1-2",180],["Prensa unilateral",3,"8-12","1-2",120],["Hip thrust con barra",3,"8-12","1-2",120],["Curl femoral sentado",3,"10-15","1-2",90],["Elevación de sóleo en Smith",3,"10-15","1-2",90],["Pallof press unilateral",3,"10-15","2",75]]],[118,"Avanzado","Lower",3,"Unilateral dominante","",[["Zancadas caminando",3,"6-10","1-2",180],["Sentadilla high-bar",3,"8-12","1-2",120],["Good morning en Smith",3,"8-12","1-2",120],["Extensión de rodilla en máquina",3,"10-15","1-2",90],["Donkey calf raise",3,"10-15","1-2",90],["Elevación de piernas colgado",3,"10-15","2",75]]],[119,"Avanzado","Lower",4,"Máquinas y estabilidad","",[["Prensa horizontal",3,"6-10","1-2",180],["Hip thrust en máquina",3,"8-12","1-2",120],["Peso muerto rumano unilateral",3,"8-12","1-2",120],["Extensión de rodilla en polea",3,"10-15","1-2",90],["Nordic asistido",3,"4-8","2",180],["Elevación unilateral sentado",3,"10-15","1-2",90]]],[120,"Avanzado","Lower",5,"Rodilla y cadera","",[["Cyclist squat",3,"6-10","1-2",180],["B-stance hip thrust",3,"8-12","1-2",120],["Step-down",3,"8-12","1-2",120],["Curl femoral unilateral",3,"10-15","1-2",90],["Abducción de cadera en polea",3,"10-15","1-2",90],["Elevación de talones en prensa",3,"10-15","1-2",90]]],[121,"Avanzado","Upper",1,"Empuje-tracción horizontal","",[["Press de banca con barra",3,"6-10","1-2",180],["Remo en máquina",3,"6-10","1-2",180],["Press unilateral con mancuerna",3,"8-12","1-2",120],["Jalón unilateral",3,"8-12","1-2",120],["Elevaciones laterales con mancuernas",3,"10-15","1-2",90],["Curl con barra EZ",3,"10-15","1-2",90],["Extensión de tríceps en máquina",3,"10-15","1-2",90]]],[122,"Avanzado","Upper",2,"Vertical equilibrado","",[["Press militar con barra",3,"6-10","1-2",180],["Dominadas pronadas",3,"6-10","1-2",180],["Press inclinado con barra",3,"8-12","1-2",120],["Remo Pendlay",3,"8-12","1-2",120],["Reverse fly en polea",3,"10-15","1-2",90],["Curl martillo cruzado",3,"10-15","1-2",90],["Extensión sobre la cabeza con polea",3,"10-15","1-2",90]]],[123,"Avanzado","Upper",3,"Torso inclinado","",[["Press inclinado con mancuernas",3,"6-10","1-2",180],["Remo con barra",3,"6-10","1-2",180],["Press de banca en Smith",3,"8-12","1-2",120],["Jalón con brazos rectos",3,"8-12","1-2",120],["Aperturas en poleas",3,"10-15","1-2",90],["Elevaciones laterales inclinadas",3,"10-15","1-2",90],["Curl predicador en polea",3,"10-15","1-2",90],["Pushdown unilateral",3,"10-15","1-2",90]]],[124,"Avanzado","Upper",4,"Control escapular","",[["Remo con pecho apoyado",3,"6-10","1-2",180],["Press de banca con mancuernas",3,"6-10","1-2",180],["Dominadas supinas",3,"8-12","1-2",120],["Press Arnold",3,"8-12","1-2",120],["Face pull",3,"10-15","1-2",90],["Cruce de poleas bajo a alto",3,"10-15","1-2",90],["Reverse curl",3,"10-15","1-2",90],["Skull crushers",3,"10-15","1-2",90]]],[125,"Avanzado","Upper",5,"Torso bilateral y unilateral","",[["Press de banca en máquina",3,"6-10","1-2",180],["Dominadas lastradas",3,"6-10","1-2",180],["Remo sentado unilateral",3,"8-12","1-2",120],["Press inclinado en máquina",3,"8-12","1-2",120],["Elevaciones laterales en polea",3,"10-15","1-2",90],["Y-raise en polea",3,"10-15","1-2",90],["Curl bayesiano en polea",3,"10-15","1-2",90],["Extensión sobre la cabeza con cuerda",3,"10-15","1-2",90]]],[126,"Avanzado","Full Body",1,"Global base","",[["Sentadilla hack",3,"6-10","1-2",180],["Press de banca con barra",3,"6-10","1-2",180],["Remo en máquina",3,"8-12","1-2",120],["Peso muerto rumano con barra",3,"8-12","1-2",120],["Elevaciones laterales con mancuernas",3,"10-15","1-2",90],["Hanging windshield wipers",3,"10-15","2",75]]],[127,"Avanzado","Full Body",2,"Posterior y vertical","",[["Peso muerto rumano con barra",3,"6-10","1-2",180],["Press militar con barra",3,"6-10","1-2",180],["Dominadas pronadas",3,"8-12","1-2",120],["Bulgarian split squat en Smith",3,"8-12","1-2",120],["Elevación de talones de pie en Smith",3,"10-15","1-2",90],["Pallof press unilateral",3,"10-15","2",75]]],[128,"Avanzado","Full Body",3,"Glúteo + torso","",[["Hip thrust en Smith",3,"6-10","1-2",180],["Press inclinado con mancuernas",3,"6-10","1-2",180],["Remo con barra",3,"8-12","1-2",120],["Sentadilla high-bar",3,"8-12","1-2",120],["Curl femoral tumbado",3,"10-15","1-2",90],["Elevación de piernas colgado",3,"10-15","2",75]]],[129,"Avanzado","Full Body",4,"Unilateral y control","",[["Zancadas en Smith",3,"6-10","1-2",180],["Remo con pecho apoyado",3,"6-10","1-2",180],["Flexiones pseudo-planche",3,"8-12","1-2",120],["Peso muerto rumano unilateral",3,"8-12","1-2",120],["Face pull",3,"10-15","1-2",90],["RKC plank",3,"20-40 s","2",75]]],[130,"Avanzado","Full Body",5,"Global en máquinas","",[["Prensa de piernas",3,"6-10","1-2",180],["Press de banca en máquina",3,"6-10","1-2",180],["Dominadas lastradas",3,"8-12","1-2",120],["Curl femoral unilateral",3,"8-12","1-2",120],["Abducción de cadera en polea",3,"10-15","1-2",90],["Pushdown con cuerda",3,"10-15","1-2",90],["Crunch en polea",3,"10-15","2",75]]],[131,"Avanzado","Push",1,"Pectoral horizontal","",[["Press de banca con barra",3,"6-10","1-2",180],["Press inclinado con barra",3,"8-12","1-2",120],["Press unilateral con mancuerna",3,"8-12","1-2",120],["Cruce de poleas medio a medio",3,"10-15","1-2",90],["Elevaciones laterales con mancuernas",3,"10-15","1-2",90],["Extensión de tríceps en máquina",3,"10-15","1-2",90]]],[132,"Avanzado","Push",2,"Hombro dominante","",[["Press militar con barra",3,"6-10","1-2",180],["Press de banca con barra",3,"8-12","1-2",120],["Press inclinado con barra",3,"8-12","1-2",120],["Elevaciones laterales unilaterales en polea",3,"10-15","1-2",90],["Extensión sobre la cabeza con polea",3,"10-15","1-2",90],["Cruce de poleas alto a bajo",3,"10-15","1-2",90]]],[133,"Avanzado","Push",3,"Pectoral superior","",[["Press inclinado con mancuernas",3,"6-10","1-2",180],["Press de banca en Smith",3,"8-12","1-2",120],["Press militar con mancuernas",3,"8-12","1-2",120],["Aperturas en poleas",3,"10-15","1-2",90],["Elevaciones laterales inclinadas",3,"10-15","1-2",90],["Pushdown unilateral",3,"10-15","1-2",90]]],[134,"Avanzado","Push",4,"Empujes y accesorios","",[["Flexiones pseudo-planche",3,"6-10","1-2",180],["Press de banca con mancuernas",3,"8-12","1-2",120],["Press Arnold",3,"8-12","1-2",120],["Elevaciones laterales en máquina",3,"10-15","1-2",90],["Skull crushers",3,"10-15","1-2",90],["Cruce de poleas bajo a alto",3,"10-15","1-2",90]]],[135,"Avanzado","Push",5,"Mixto estable","",[["Press de banca en máquina",3,"6-10","1-2",180],["Press militar en Smith",3,"8-12","1-2",120],["Press inclinado en máquina",3,"8-12","1-2",120],["Elevaciones laterales en polea",3,"10-15","1-2",90],["Aperturas inclinadas con mancuernas",3,"10-15","1-2",90],["Extensión sobre la cabeza con cuerda",3,"10-15","1-2",90]]],[136,"Avanzado","Pull",1,"Remo dominante","",[["Remo Meadows",3,"6-10","1-2",180],["Jalón unilateral",3,"8-12","1-2",120],["Remo en máquina",3,"8-12","1-2",120],["Y-raise en banco inclinado",3,"10-15","1-2",90],["Curl con barra EZ",3,"10-15","1-2",90],["Curl con cuerda",3,"10-15","1-2",90]]],[137,"Avanzado","Pull",2,"Jalón dominante","",[["Dominadas pronadas",3,"6-10","1-2",180],["T-bar row con pecho apoyado",3,"8-12","1-2",120],["Pullover con polea",3,"8-12","1-2",120],["Reverse fly en polea",3,"10-15","1-2",90],["Curl inclinado con mancuernas",3,"10-15","1-2",90],["Curl martillo cruzado",3,"10-15","1-2",90]]],[138,"Avanzado","Pull",3,"Espalda media + brazos","",[["Remo unilateral con mancuerna",3,"6-10","1-2",180],["Dominadas neutras",3,"8-12","1-2",120],["Remo con barra",3,"8-12","1-2",120],["Pájaros en polea",3,"10-15","1-2",90],["Curl predicador en polea",3,"10-15","1-2",90],["Zottman curl",3,"10-15","1-2",90]]],[139,"Avanzado","Pull",4,"Dorsal y control","",[["Dominadas supinas",3,"6-10","1-2",180],["T-bar row con pecho apoyado",3,"8-12","1-2",120],["Pullover en máquina",3,"8-12","1-2",120],["Face pull",3,"10-15","1-2",90],["Curl spider",3,"10-15","1-2",90],["Farmer's walk",3,"25-40 s","2",75]]],[140,"Avanzado","Pull",5,"Tirón variado","",[["Remo Yates",3,"6-10","1-2",180],["Dominadas lastradas",3,"8-12","1-2",120],["Remo sentado unilateral",3,"8-12","1-2",120],["Y-raise en polea",3,"10-15","1-2",90],["Curl martillo",3,"10-15","1-2",90],["Body saw",3,"10-15","2",75]]],[141,"Avanzado","Legs",1,"Cuádriceps dominante","",[["Belt squat",3,"6-10","1-2",180],["Prensa unilateral",3,"8-12","1-2",120],["Reverse lunge",3,"8-12","1-2",120],["Extensión unilateral de rodilla",3,"10-15","1-2",90],["Curl femoral con polea",3,"10-15","1-2",90],["Elevación de talones de pie en máquina",3,"10-15","1-2",90]]],[142,"Avanzado","Legs",2,"Isquios dominante","",[["Peso muerto rumano con barra",3,"6-10","1-2",180],["Curl femoral sentado",3,"8-12","1-2",120],["Sentadilla high-bar",3,"8-12","1-2",120],["Extensión unilateral de rodilla",3,"10-15","1-2",90],["Elevación de sóleo en Smith",3,"10-15","1-2",90],["Ab wheel rollout",3,"10-15","2",75]]],[143,"Avanzado","Legs",3,"Rodilla unilateral","",[["Zancadas caminando",3,"6-10","1-2",180],["Prensa inclinada",3,"8-12","1-2",120],["Peso muerto con piernas rígidas",3,"8-12","1-2",120],["Extensión de rodilla en máquina",3,"10-15","1-2",90],["Donkey calf raise",3,"10-15","1-2",90],["Curl femoral tumbado",3,"10-15","1-2",90]]],[144,"Avanzado","Legs",4,"Anterior + posterior","",[["Sentadilla low-bar",3,"6-10","1-2",180],["Peso muerto rumano unilateral",3,"8-12","1-2",120],["Prensa horizontal",3,"8-12","1-2",120],["Nordic asistido",3,"4-8","2",180],["Extensión de rodilla en polea",3,"10-15","1-2",90],["Elevación unilateral sentado",3,"10-15","1-2",90]]],[145,"Avanzado","Legs",5,"Máquinas de pierna","",[["Prensa de piernas",3,"6-10","1-2",180],["Cyclist squat",3,"8-12","1-2",120],["Curl femoral unilateral",3,"8-12","1-2",120],["Sissy squat",3,"10-15","1-2",90],["Elevación de talones en prensa",3,"10-15","1-2",90],["Elevación de sóleo sentado en máquina",3,"10-15","1-2",90]]],[146,"Avanzado","Glúteos",1,"Extensión de cadera","",[["Hip thrust unilateral",3,"6-10","1-2",180],["Peso muerto rumano con barra",3,"8-12","1-2",120],["Reverse lunge",3,"8-12","1-2",120],["Patada de glúteo en máquina",3,"12-20","1-2",75],["Abducción de cadera en máquina",3,"12-20","1-2",75]]],[147,"Avanzado","Glúteos",2,"Posterior + unilateral","",[["Peso muerto rumano con barra",3,"6-10","1-2",180],["Hip thrust con barra",3,"8-12","1-2",120],["Hip thrust unilateral",3,"8-12","1-2",120],["Back extension con sesgo a glúteo",3,"12-20","1-2",75],["Abducción de cadera en polea",3,"12-20","1-2",75]]],[148,"Avanzado","Glúteos",3,"Puente + amplitud","",[["Hip thrust en Smith",3,"6-10","1-2",180],["Sentadilla high-bar",3,"8-12","1-2",120],["Good morning en Smith",3,"8-12","1-2",120],["Abducción de cadera en máquina",3,"12-20","1-2",75],["Patada de glúteo en polea",3,"12-20","1-2",75]]],[149,"Avanzado","Glúteos",4,"Estabilidad de pelvis","",[["Bulgarian split squat",3,"6-10","1-2",180],["Hip thrust en máquina",3,"8-12","1-2",120],["Zancadas en Smith",3,"8-12","1-2",120],["Abducción lateral con banda",3,"12-20","1-2",75],["Nordic asistido",3,"4-8","2",180]]],[150,"Avanzado","Glúteos",5,"Cadena posterior completa","",[["Good morning",3,"6-10","1-2",180],["B-stance hip thrust",3,"8-12","1-2",120],["Step-up",3,"8-12","1-2",120],["Back extension a 45°",3,"12-20","1-2",75],["Abducción de cadera en polea",3,"12-20","1-2",75],["Curl femoral unilateral",3,"12-20","1-2",75]]]];
+const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const CATS=['Full Body','Upper','Lower','Push','Pull','Legs','Glúteos','Fuerza','Circuito metabólico','Mantenimiento'];
+const NIV=['Principiante','Intermedio','Avanzado'];
+const pad=n=>String(n).padStart(3,'0');
+const ylRut=RUT.map(([n,nivel,cat,rn,nombre,nota,ex])=>({n,nivel,cat,rn,nombre,nota,ex:ex.map(([name,sets,reps,rir,rest])=>({name,sets,reps,rir:/-/.test(rir)?rir:Number(rir),rest,method:/vuelta/.test(nota)?'Circuito':'Tradicional'}))}));
+window.YL_RUTINAS=ylRut;
+let fCat='',fNiv='',fQ='',fDia='';
+function pintarRutinas(){
+  const page=$('coachAutoRoutines');if(!page)return;
+  if(!page.dataset.ylr){page.dataset.ylr='1';
+    page.innerHTML=`<div class="page-header"><div><h2>Entrenamientos automáticos</h2><p>${ylRut.length} rutinas por nivel (Biblioteca YAYO / GYFA). Elige el día y carga la rutina en el constructor.</p></div></div>
+      <div class="module"><div class="ylr-tool">
+        <label for="ylrCat">CATEGORÍA<select id="ylrCat"><option value="">Todas</option>${CATS.map(c=>`<option>${c}</option>`).join('')}</select></label>
+        <label for="ylrNiv">NIVEL<select id="ylrNiv"><option value="">Todos</option>${NIV.map(c=>`<option>${c}</option>`).join('')}</select></label>
+        <label for="ylrDia">CARGAR EN EL DÍA<select id="ylrDia">${DIAS.map(d=>`<option>${d}</option>`).join('')}</select></label>
+        <label for="ylrQ">BUSCAR<input id="ylrQ" placeholder="Ej: 045, sentadilla, glúteos"></label></div>
+        <p class="ylf-note" id="ylrCount" role="status"></p><div class="ylr-grid" id="ylrGrid"></div></div>`;
+    const dia=$('ylrDia');dia.value=(window.yv49ActiveDay&&window.yv49ActiveDay())||'Lunes';
+    page.addEventListener('input',e=>{if(e.target.id==='ylrQ'){fQ=e.target.value;tarjetas()}});
+    page.addEventListener('change',e=>{if(e.target.id==='ylrCat'){fCat=e.target.value;tarjetas()}if(e.target.id==='ylrNiv'){fNiv=e.target.value;tarjetas()}if(e.target.id==='ylrDia'){fDia=e.target.value;tarjetas()}});
+    page.addEventListener('click',e=>{const b=e.target.closest('[data-ylr]');if(b)cargarRutina(+b.dataset.ylr)});
+  }
+  tarjetas();
+}
+function tarjetas(){
+  const g=$('ylrGrid');if(!g)return;const q=N(fQ);const dia=($('ylrDia')||{}).value||'Lunes';
+  const L=ylRut.filter(r=>(!fCat||r.cat===fCat)&&(!fNiv||r.nivel===fNiv)&&(!q||N(pad(r.n)+' '+r.cat+' '+r.nombre+' '+r.nivel+' '+r.ex.map(e=>e.name).join(' ')).includes(q)));
+  $('ylrCount').textContent=L.length+' rutina(s)';
+  g.innerHTML=L.map(r=>`<article class="ylr-card"><div><span class="badge badge-red">${pad(r.n)}</span> <span class="badge">${esc(r.cat)}</span> <span class="badge">${esc(r.nivel)}</span></div>
+    <h4>Rutina ${String(r.rn).padStart(2,'0')} · ${esc(r.nombre)}</h4>${r.nota?`<div class="note">${esc(r.nota)}</div>`:''}
+    <ol>${r.ex.map(e=>`<li>${esc(e.name)} <span>· ${e.sets} × ${esc(e.reps)} · RIR ${esc(e.rir)} · ${e.rest} s</span></li>`).join('')}</ol>
+    <button type="button" class="btn btn-red" data-ylr="${r.n}">Cargar en ${esc(dia)}</button></article>`).join('')||'<p class="ylf-note">No hay rutinas con esos filtros.</p>';
+}
+function cargarRutina(n){
+  const r=ylRut.find(x=>x.n===n);if(!r)return;const dia=($('ylrDia')||{}).value||'Lunes';
+  if(!window.yv47Day){toast('Abre el constructor de rutinas para cargarla.');return}
+  window.yv47Day(dia);
+  const dr=state.routineDraft;const d=dr&&dr.days&&dr.days[dia];
+  if(d&&(d.exercises||[]).length&&!confirm(`${dia} ya tiene ${(d.exercises||[]).length} ejercicio(s). ¿Reemplazarlos por la rutina ${pad(r.n)}?`))return;
+  const sel=$('yv46RoutineUser')?.value||'';
+  state.routineDraft=state.routineDraft||{name:'Rutina semanal',days:{}};if(sel&&!state.routineDraft._uid)state.routineDraft._uid=sel;
+  state.routineDraft.days=state.routineDraft.days||{};
+  state.routineDraft.days[dia]={name:`${r.cat} · ${r.nombre}${r.nota?' ('+r.nota+')':''}`,rest:false,exercises:r.ex.map(e=>Object.assign({},e)),cardio:(d&&d.cardio)||[],plantilla:pad(r.n)};
+  guardar();
+  [...document.querySelectorAll('#coachRoutines .v10-tab')].find(b=>/CONSTRUCTOR/i.test(b.textContent))?.click();
+  window.yv47Day(dia);
+  toast(`Rutina ${pad(r.n)} cargada en ${dia}. Revisa y asigna la semana.`);
+}
+window.v10RenderAutoRoutines=pintarRutinas;
+window.v10RenderAutoRoutineCards=tarjetas;
+window.v10LoadAutoRoutine=id=>{const n=parseInt(String(id).replace(/\D/g,''),10);if(n)cargarRutina(n)};
+document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('#coachRoutines .v10-tab');if(t&&/AUTOM/i.test(t.textContent))setTimeout(pintarRutinas,60)},true);
+setTimeout(()=>{if($('coachAutoRoutines'))pintarRutinas()},1500);
+})();
+</script>
+</body></html>
