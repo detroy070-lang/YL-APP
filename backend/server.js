@@ -295,6 +295,8 @@ const archivoSchema = new mongoose.Schema({
   datos: Buffer,
   clave: { type: String, index: true },
   subidoPor: String,
+  uid: String,        // dueño (exámenes médicos)
+  privado: Boolean,   // solo el dueño y los coaches pueden abrirlo
   createdAt: { type: Date, default: Date.now }
 }, { collection: 'archivos' });
 const Archivo = mongoose.model('Archivo', archivoSchema);
@@ -615,13 +617,13 @@ app.post('/api/auth/coach-password', soloCoach, async (req, res) => {
 
 // ---------- qué ve y qué puede tocar cada cliente ----------
 // Bloques en forma de lista: un elemento es del cliente si lleva su id o su nombre.
-const BLOQUES_LISTA = ['routines', 'diets', 'sessions', 'checkins', 'calendarEvents', 'progressReviews'];
+const BLOQUES_LISTA = ['routines', 'diets', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'medicalExams'];
 // Bloques en forma de objeto organizados por cliente (llave = id o nombre del cliente)
 const OBJ_POR_CLIENTE = ['userAssignments', 'assignmentHistory', 'progressLogs'];
 // Bloques generales que el cliente puede ver pero no cambiar
 const SOLO_LECTURA = ['brands', 'foodNutrition', 'exerciseVideos'];
 // Bloques que el cliente sí puede modificar (solo en lo suyo)
-const CLIENTE_ESCRIBE = ['users', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'progressLogs'];
+const CLIENTE_ESCRIBE = ['users', 'sessions', 'checkins', 'calendarEvents', 'progressReviews', 'progressLogs', 'medicalExams'];
 // Datos de su propia ficha que el cliente NO puede cambiar
 const CAMPOS_PROTEGIDOS = ['id', 'name', 'status', 'coachId', 'bodybuilder', 'createdAt', 'protocolPdf', 'protocolFiles', 'password',
   // QA 14-oct: objetivo y ficha (expediente) son exclusivos del coach
@@ -908,13 +910,55 @@ app.get('/api/archivos/:id', conSesion, async (req, res) => {
     if (/^[a-f0-9]{36}$/.test(id)) a = await Archivo.findOne({ clave: id });
     else if (mongoose.isValidObjectId(id) && req.quien.rol === 'coach') a = await Archivo.findById(id); // enlaces antiguos: solo coach
     if (!a) return res.status(404).end();
+    // exámenes médicos: solo el dueño y los coaches
+    if (a.privado && !(req.quien.rol === 'coach' || (req.quien.rol === 'user' && String(a.uid) === String(req.quien.uid)))) return res.status(404).end();
     const tipo = TIPOS_SEGUROS.test(a.tipo || '') ? a.tipo : 'application/octet-stream';
     res.set('Content-Type', tipo);
     if (tipo === 'application/octet-stream') res.set('Content-Disposition', 'attachment');
-    res.set('Cache-Control', 'private, max-age=31536000, immutable');
+    // los exámenes médicos no se guardan en caché (equipos compartidos, archivos borrados)
+    res.set('Cache-Control', a.privado ? 'private, no-store' : 'private, max-age=31536000, immutable');
     res.send(a.datos);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ---------- Exámenes médicos (QA 15-oct) ----------
+// El cliente sube los suyos; el coach puede subirlos en nombre del cliente.
+// Archivo privado: solo lo abren el dueño y los coaches. Solo PDF e imágenes, hasta 10 MB.
+const TIPOS_EXAMEN = /^(image\/(jpeg|png|webp|heic|heif)|application\/pdf)$/i;
+app.post('/api/examenes/archivo', conSesion, express.raw({ type: () => true, limit: '10mb' }), async (req, res) => {
+  try {
+    if (!req.body || !req.body.length) return res.status(400).json({ error: 'Archivo vacío.' });
+    const tipo = String(req.get('X-File-Type') || '').slice(0, 80);
+    if (!TIPOS_EXAMEN.test(tipo)) return res.status(415).json({ error: 'Solo se aceptan PDF o fotos (JPG, PNG, WEBP, HEIC).' });
+    let uid;
+    if (req.quien.rol === 'user') uid = String(req.quien.uid);
+    else {
+      uid = String(req.get('X-User-Id') || '');
+      if (!cache.users.find(x => userId(x) === uid)) return res.status(404).json({ error: 'Cliente no encontrado.' });
+    }
+    let nombre = 'examen';
+    try { nombre = decodeURIComponent(req.get('X-File-Name') || 'examen').slice(0, 120); } catch (e) {}
+    const clave = crypto.randomBytes(18).toString('hex');
+    await Archivo.create({ nombre, tipo, tamano: req.body.length, datos: req.body, clave, uid, privado: true,
+      subidoPor: req.quien.rol === 'user' ? req.quien.uid : req.quien.coach });
+    res.json({ success: true, url: '/api/archivos/' + clave, tamano: req.body.length });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo guardar el archivo.' });
+  }
+});
+app.delete('/api/examenes/archivo/:id', conSesion, async (req, res) => {
+  try {
+    const id = String(req.params.id || '');
+    if (!/^[a-f0-9]{36}$/.test(id)) return res.status(400).json({ error: 'Archivo no válido.' });
+    const a = await Archivo.findOne({ clave: id, privado: true });
+    if (!a) return res.json({ success: true });
+    if (!(req.quien.rol === 'coach' || (req.quien.rol === 'user' && String(a.uid) === String(req.quien.uid)))) return res.status(403).json({ error: 'Sin permiso.' });
+    await Archivo.deleteOne({ _id: a._id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo borrar el archivo.' });
   }
 });
 

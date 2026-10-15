@@ -9741,7 +9741,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 @media(max-width:520px){.yv60-grid{grid-template-columns:1fr}}
 
 </style>
-<script id="yl-version">window.YL_VERSION='2026.10.14-aj';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
+<script id="yl-version">window.YL_VERSION='2026.10.15-ak';document.addEventListener('DOMContentLoaded',()=>{try{const f=document.querySelector('#loginScreen .login-card')||document.querySelector('#loginScreen');if(f&&!document.getElementById('ylVer')){const s=document.createElement('div');s.id='ylVer';s.textContent='YL · versión '+window.YL_VERSION;s.style.cssText='text-align:center;font-size:10px;color:#4a4a50;margin-top:18px;letter-spacing:.04em';f.appendChild(s)}}catch(e){}});</script>
 <script id="yl-viewport">
 /* YL · alto real de la pantalla visible en --yl-vh (solo cambia al girar,
    abrir el teclado o cambiar de tamaño; nunca mientras se desplaza). */
@@ -10195,7 +10195,7 @@ function yv57Wire(root,seriesA,seriesB,unitA,unitB,labelsA,labelsB){
 ========================================================= */
 (function(){
   "use strict";
-  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados","exerciseVideos","dietCalc"];
+  const DOC_KEYS=["users","routines","diets","sessions","checkins","calendarEvents","progressReviews","userAssignments","accessRequests","issuedKeys","foodNutrition","brands","assignmentHistory","progressLogs","libraryDiets","libraryRoutines","migraciones","chequeosEliminados","exerciseVideos","dietCalc","medicalExams"];
   let dbNs=null, assetsNs=null, ready=false, suppress=false;
   const timers={};
 
@@ -15094,6 +15094,203 @@ window.v10RenderAutoRoutineCards=tarjetas;
 window.v10LoadAutoRoutine=id=>{const n=parseInt(String(id).replace(/\D/g,''),10);if(n)cargarRutina(n)};
 document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('#coachRoutines .v10-tab');if(t&&/AUTOM/i.test(t.textContent))setTimeout(pintarRutinas,60)},true);
 setTimeout(()=>{if($('coachAutoRoutines'))pintarRutinas()},1500);
+})();
+</script>
+<style id="yl-examenes-2026-10-15-css">
+.yle{max-width:860px}
+.yle-card{background:#141416;border:1px solid #303036;border-radius:18px;padding:14px;margin-top:12px}
+.yle-card h3{margin:0 0 4px;font-size:16px}
+.yle-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.yle-g label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#c7c7cc}
+.yle-g label.full{grid-column:1/-1}
+.yle input,.yle select,.yle textarea,.yle-modal input,.yle-modal select,.yle-modal textarea{width:100%;box-sizing:border-box;background:#0d0d0f;border:1px solid #3a3a40;color:#fff;border-radius:10px;padding:10px;font:inherit;font-size:14px;min-height:44px}
+.yle-file{border:1px dashed #4a4a52;border-radius:14px;padding:14px;text-align:center;cursor:pointer;color:#c7c7cc;font-size:13px}
+.yle-file input{display:none}
+.yle-file b{color:#fff}
+.yle-ok{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:#c7c7cc;margin-top:10px}
+.yle-ok input{width:20px;min-height:20px;margin-top:1px}
+.yle-btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid #3a3a40;background:#18181b;color:#fff;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.yle-btn.pri{background:var(--brand,#e50914);border-color:var(--brand,#e50914)}
+.yle-btn.del{background:transparent;color:#ff8c96;border-color:#5a2a30}
+.yle-btn:disabled{opacity:.6;cursor:wait}
+.yle-btn:focus-visible,.yle-file:focus-within{outline:3px solid #ffb4b4;outline-offset:2px}
+.yle-st{font-size:12.5px;margin-top:8px;min-height:16px;color:#8e8e93}
+.yle-st.ok{color:#7ddc8a}.yle-st.err{color:#ff8c96}
+.yle-year{font-size:12px;letter-spacing:.08em;color:#8e8e93;font-weight:800;margin:16px 0 6px}
+.yle-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:#111113;border:1px solid #29292d;border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.yle-date{text-align:center;min-width:52px;background:#1d1d21;border-radius:10px;padding:6px 4px;line-height:1.1}
+.yle-date b{display:block;font-size:18px}.yle-date small{font-size:10.5px;color:#8e8e93;text-transform:uppercase}
+.yle-info b{font-size:14px}.yle-info small{display:block;color:#8e8e93;font-size:12px;margin-top:2px}
+.yle-info .nuevo{display:inline-block;font-size:10px;font-weight:800;background:#1f3a24;color:#7ddc8a;border-radius:999px;padding:2px 7px;margin-left:6px}
+.yle-acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.yle-acc .yle-btn{min-height:38px;padding:0 12px;font-size:12px}
+.yle-empty{color:#8e8e93;font-size:13px;padding:10px 0}
+.yle-note{font-size:12px;color:#8e8e93;margin:6px 0 0}
+@media(max-width:560px){.yle-g{grid-template-columns:1fr}.yle-item{grid-template-columns:auto 1fr}.yle-acc{grid-column:1/-1;justify-content:flex-start}}
+</style>
+<script id="yl-examenes-2026-10-15">
+/* =====================================================================
+   QA 15-oct · Exámenes médicos por fecha
+   - El cliente sube sus exámenes (PDF o foto), con fecha, tipo y nota; puede borrarlos.
+   - El coach los ve en el expediente, puede subir en nombre del cliente y borrar.
+   - Archivos privados en el servidor: solo el dueño y los coaches pueden abrirlos.
+   ===================================================================== */
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{try{(window.gyfaToast||window.toast||console.log)(m)}catch(e){}};
+const rol=()=>sessionStorage.getItem('yayo_active_role')||(typeof currentRole!=='undefined'?currentRole:'');
+const esCoach=()=>rol()==='coach';
+const yo=()=>{const id=sessionStorage.getItem('yayo_active_user_id');return (state.users||[]).find(u=>String(u.id)===String(id))||null};
+const byId=id=>(state.users||[]).find(u=>String(u.id)===String(id));
+const coachNom=()=>{const c=sessionStorage.getItem('yayo_active_coach')||'Coach';return c.charAt(0).toUpperCase()+c.slice(1)};
+const hoy=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const TIPOS=['Sangre (hemograma, perfil lipídico, glicemia…)','Orina','Hormonal','Imágenes (ecografía, rayos X, resonancia)','Electrocardiograma / cardiología','Composición corporal (DEXA, bioimpedancia)','Otro'];
+const MAX=10*1024*1024;
+function lista(){state.medicalExams=Array.isArray(state.medicalExams)?state.medicalExams:[];return state.medicalExams}
+function deUsuario(uid){return lista().filter(e=>String(e.userId)===String(uid)).sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))||String(b.creado).localeCompare(String(a.creado)))}
+const tam=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+/* ---- guardado con confirmación real del servidor ---- */
+const oyentes=new Set();const oSt=window.yv71Status;
+window.yv71Status=function(k,r){oyentes.forEach(f=>{try{f(k,r)}catch(e){}});return oSt?oSt.apply(this,arguments):undefined};
+function guardarConfirmado(){return new Promise(res=>{let fin=false;const f=k=>{if(fin)return;if(k==='saved'||k==='error'){fin=true;oyentes.delete(f);res(k==='saved')}};oyentes.add(f);try{window.saveState&&window.saveState()}catch(e){fin=true;oyentes.delete(f);res(false)}setTimeout(()=>{if(!fin){fin=true;oyentes.delete(f);res(null)}},9000)})}
+/* ---- fotos grandes: se comprimen antes de subir ---- */
+function comprimir(file){
+  return new Promise(res=>{
+    if(!/^image\/(jpeg|png|webp)$/i.test(file.type)||file.size<1.2e6)return res(file);
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{try{const k=Math.min(1,2200/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=>{URL.revokeObjectURL(url);res(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.82)}catch(e){res(file)}};
+    img.onerror=()=>{URL.revokeObjectURL(url);res(file)};img.src=url;
+  });
+}
+async function subirArchivo(file,uid){
+  const f=await comprimir(file);
+  if(f.size>MAX)throw new Error('El archivo pesa '+tam(f.size)+'. El máximo es 10 MB.');
+  const r=await fetch('/api/examenes/archivo',{method:'POST',credentials:'include',headers:{'X-File-Name':encodeURIComponent(f.name),'X-File-Type':f.type||'application/octet-stream','X-User-Id':String(uid)},body:f});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.url)throw new Error(j.error||'No se pudo subir el archivo.');
+  return {url:j.url,name:f.name,type:f.type,size:j.tamano||f.size};
+}
+/* ---- formulario de carga (cliente o coach) ---- */
+function formHTML(pre,u,coach){
+  const consent=!(u&&u.consentimientoSalud);
+  return `<div class="yle-file" tabindex="-1"><label for="${pre}File" style="cursor:pointer;display:block"><b>Elegir archivo</b><br><span id="${pre}FileTxt">PDF o foto (JPG, PNG, WEBP, HEIC) · máximo 10 MB</span></label><input id="${pre}File" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"></div>
+    <div class="yle-g"><label for="${pre}Fecha">Fecha del examen<input id="${pre}Fecha" type="date" max="${hoy()}" value=""></label>
+      <label for="${pre}Tipo">Tipo de examen<select id="${pre}Tipo"><option value="">Elige el tipo…</option>${TIPOS.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
+      <label class="full" for="${pre}Nota">Nota (opcional)<textarea id="${pre}Nota" rows="2" maxlength="300" placeholder="Ej: control anual, laboratorio, observaciones del médico"></textarea></label></div>
+    ${consent?`<label class="yle-ok"><input id="${pre}Ok" type="checkbox"> <span>${coach?`${esc(u?(u.fullName||u.name):'El cliente')} autorizó que sus coaches guarden y revisen sus exámenes médicos.`:'Autorizo a mis coaches a guardar y revisar mis exámenes médicos para acompañar mi plan.'}</span></label>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button type="button" class="yle-btn pri" id="${pre}Subir">Subir examen</button></div>
+    <div class="yle-st" id="${pre}St" role="status" aria-live="polite"></div>`;
+}
+function enlazarForm(pre,uid,coach,alTerminar){
+  const inp=$(pre+'File');if(inp)inp.addEventListener('change',()=>{const f=inp.files[0];$(pre+'FileTxt').textContent=f?`${f.name} · ${tam(f.size)}`:'PDF o foto (JPG, PNG, WEBP, HEIC) · máximo 10 MB'});
+  const st=(t,c)=>{const s=$(pre+'St');if(s){s.textContent=t;s.className='yle-st '+(c||'')}};
+  $(pre+'Subir').onclick=async()=>{
+    const f=inp&&inp.files[0],fecha=$(pre+'Fecha').value,tipo=$(pre+'Tipo').value,nota=$(pre+'Nota').value.trim();const ok=$(pre+'Ok');
+    if(!f)return st('Elige el archivo del examen.','err');
+    if(!/^(application\/pdf|image\/(jpeg|png|webp|heic|heif))$/i.test(f.type||''))return st('Solo PDF o fotos (JPG, PNG, WEBP, HEIC).','err');
+    if(!fecha)return st('Indica la fecha del examen.','err');
+    if(fecha>hoy())return st('La fecha no puede ser futura.','err');
+    if(!tipo)return st('Elige el tipo de examen.','err');
+    if(ok&&!ok.checked)return st('Para guardar el examen hace falta la autorización.','err');
+    const b=$(pre+'Subir');b.disabled=true;st('Subiendo archivo…');
+    try{
+      const arch=await subirArchivo(f,uid);
+      const u=byId(uid);
+      if(u&&!u.consentimientoSalud)u.consentimientoSalud={fecha:new Date().toISOString(),por:coach?'coach '+coachNom():'cliente'};
+      lista().push({id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),userId:u?u.id:uid,user:u?u.name:'',fecha,tipo,nota,archivo:arch,
+        subidoPor:coach?{rol:'coach',nombre:coachNom()}:{rol:'cliente',nombre:u?u.name:''},creado:new Date().toISOString(),vistoCoach:!!coach});
+      st('Guardando…');
+      const r=await guardarConfirmado();
+      if(r===false){st('El archivo se subió pero no se pudo guardar el registro. Revisa la conexión y vuelve a intentarlo.','err');b.disabled=false;return}
+      const msg=r?'Examen guardado ✓':'Examen guardado en este equipo; se sincroniza en segundos.';toast('Examen guardado.');
+      alTerminar&&alTerminar();st(msg,'ok');
+    }catch(e){st(e.message||'No se pudo subir el examen.','err');b.disabled=false}
+  };
+}
+function itemHTML(e,puedeBorrar,coach){
+  const [y,m,d]=String(e.fecha||'').split('-');
+  const quien=e.subidoPor&&e.subidoPor.rol==='coach'?`Subido por ${esc(e.subidoPor.nombre||'el coach')}`:(coach?'Subido por el cliente':'Subido por ti');
+  return `<div class="yle-item"><div class="yle-date"><b>${esc(+d||'')}</b><small>${MES[(+m||1)-1]} ${esc(y||'')}</small></div>
+    <div class="yle-info"><b>${esc(e.tipo||'Examen')}</b>${coach&&!e.vistoCoach?'<span class="nuevo">Nuevo</span>':''}<small>${esc(e.archivo&&e.archivo.name||'archivo')} · ${e.archivo&&e.archivo.size?tam(e.archivo.size):''} · ${quien}</small>${e.nota?`<small>${esc(e.nota)}</small>`:''}</div>
+    <div class="yle-acc"><a class="yle-btn" href="${esc(e.archivo&&e.archivo.url||'#')}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Ver</a>${puedeBorrar?`<button type="button" class="yle-btn del" data-borrar="${esc(e.id)}">Eliminar</button>`:''}</div></div>`;
+}
+function listaHTML(items,coach){
+  if(!items.length)return `<p class="yle-empty">${coach?'Este cliente aún no tiene exámenes.':'Aún no has subido exámenes.'}</p>`;
+  let html='',año='';items.forEach(e=>{const y=String(e.fecha||'').slice(0,4);if(y!==año){año=y;html+=`<div class="yle-year">${esc(y)}</div>`}html+=itemHTML(e,true,coach)});return html;
+}
+async function borrar(id,despues){
+  const e=lista().find(x=>x.id===id);if(!e)return;
+  if(!confirm(`¿Eliminar el examen "${e.tipo}" del ${e.fecha}? Se borra también el archivo.`))return;
+  state.medicalExams=lista().filter(x=>x.id!==id);
+  const r=await guardarConfirmado();
+  if(r===false){toast('No se pudo eliminar. Revisa la conexión.');state.medicalExams.push(e);despues&&despues();return}
+  const k=(e.archivo&&e.archivo.url||'').split('/').pop();
+  if(/^[a-f0-9]{36}$/.test(k))fetch('/api/examenes/archivo/'+k,{method:'DELETE',credentials:'include'}).catch(()=>{});
+  toast('Examen eliminado.');despues&&despues();
+}
+/* ---------------- PESTAÑA DEL CLIENTE ---------------- */
+function asegurarPagina(){
+  let p=$('userExams');if(p)return p;
+  const ref=$('userHome');if(!ref)return null;
+  p=document.createElement('section');p.id='userExams';p.className='page';ref.parentElement.appendChild(p);return p;
+}
+function pintarCliente(){
+  const p=asegurarPagina();const u=yo();if(!p||!u)return;
+  p.innerHTML=`<div class="yle"><div class="welcome"><h1>Mis exámenes</h1><p>Sube tus exámenes médicos con su fecha. Solo tú y tus coaches pueden verlos.</p></div>
+    <div class="yle-card"><h3>Subir un examen</h3>${formHTML('yleC',u,false)}</div>
+    <div class="yle-card"><h3>Historial por fecha</h3><div id="yleCLista">${listaHTML(deUsuario(u.id),false)}</div></div></div>`;
+  enlazarForm('yleC',u.id,false,pintarCliente);
+  p.querySelector('#yleCLista').addEventListener('click',ev=>{const b=ev.target.closest('[data-borrar]');if(b)borrar(b.dataset.borrar,pintarCliente)});
+}
+window.ylAbrirExamenes=function(){if(esCoach())return;asegurarPagina();window.showPage('userExams',true)};
+/* tarjeta en el Inicio y opción en el menú del usuario */
+function tarjetaInicio(){
+  if(esCoach())return;const h=$('userHome');const u=yo();if(!h||!u||$('yleInicio'))return;
+  const n=deUsuario(u.id).length;
+  const c=document.createElement('button');c.type='button';c.id='yleInicio';c.className='ylo-perfil';c.style.cssText='display:flex;width:100%;justify-content:space-between;align-items:center;cursor:pointer;min-height:48px;text-align:left;font:inherit';
+  c.innerHTML=`<span>🩺 <b>Mis exámenes médicos</b> · ${n?n+' guardado(s)':'Sube tus exámenes por fecha'}</span><span aria-hidden="true">›</span>`;
+  c.onclick=window.ylAbrirExamenes;
+  const ref=$('yloCliente')||h.querySelector('h1,h2');(ref&&ref.parentElement?ref:h).insertAdjacentElement(ref?'afterend':'afterbegin',c);
+}
+new MutationObserver(()=>{const m=document.querySelector('.yv74-menu');if(!m||esCoach()||m.querySelector('[data-a="examenes"]'))return;const ref=m.querySelector('[data-a="pass"]');if(!ref)return;const b=document.createElement('button');b.type='button';b.dataset.a='examenes';b.textContent='Mis exámenes médicos';b.onclick=()=>{m.remove();window.ylAbrirExamenes()};ref.before(b)}).observe(document.body,{childList:true});
+const oShow=window.showPage;
+window.showPage=function(id){
+  if(id==='userExams')asegurarPagina();
+  const r=oShow?oShow.apply(this,arguments):undefined;
+  if(id==='userExams'){setTimeout(()=>{pintarCliente();const t=$('pageTitle');if(t)t.textContent='Mis exámenes'},30)}
+  if(id==='userHome')setTimeout(()=>{const v=$('yleInicio');if(v)v.remove();tarjetaInicio()},650);
+  if(id==='coachDashboard')setTimeout(avisoCoach,600);
+  return r};
+setTimeout(()=>{tarjetaInicio();avisoCoach()},3000);
+/* ---------------- COACH: expediente ---------------- */
+function seccionCoach(uid){
+  const exp=document.querySelector('.yv74-exp');if(!exp)return;
+  let s=exp.querySelector('#yleCoach');
+  const items=deUsuario(uid);const nuevos=items.filter(e=>!e.vistoCoach).length;
+  const html=`<h4>Exámenes médicos <small>(${items.length}${nuevos?' · '+nuevos+' nuevo(s)':''})</small></h4><div id="yleCoachLista">${listaHTML(items,true)}</div>
+    <details class="yle" style="margin-top:6px"><summary class="yle-btn" style="display:inline-flex;align-items:center;list-style:none">Subir examen en nombre del cliente</summary><div class="yle-card">${formHTML('yleK',byId(uid),true)}</div></details>`;
+  if(!s){s=document.createElement('div');s.id='yleCoach';const ref=[...exp.querySelectorAll('h4')].find(h=>/Sesiones registradas/i.test(h.textContent));ref?ref.before(s):exp.appendChild(s)}
+  s.innerHTML=html;
+  enlazarForm('yleK',uid,true,()=>seccionCoach(uid));
+  s.querySelector('#yleCoachLista').addEventListener('click',ev=>{const b=ev.target.closest('[data-borrar]');if(b)borrar(b.dataset.borrar,()=>seccionCoach(uid))});
+  if(nuevos){setTimeout(()=>{let cambio=false;lista().forEach(e=>{if(String(e.userId)===String(uid)&&!e.vistoCoach){e.vistoCoach=true;cambio=true}});if(cambio){try{window.saveState&&window.saveState()}catch(e){}}},1500)}
+}
+const oExp=window.yv74Expediente;
+if(oExp){window.yv74Expediente=function(id){const r=oExp.apply(this,arguments);let n=0;const t=()=>{if(document.querySelector('.yv74-exp'))seccionCoach(id);else if(++n<20)setTimeout(t,60)};setTimeout(t,80);return r}}
+/* aviso en el dashboard del coach */
+function avisoCoach(){
+  if(!esCoach())return;const host=$('dashAtencionChequeos');const list=host&&host.closest('.list');if(!list)return;
+  const pend=lista().filter(e=>!e.vistoCoach);let row=$('yleAviso');
+  if(!pend.length){row&&row.remove();return}
+  const quienes=[...new Set(pend.map(e=>String(e.userId)))];
+  if(!row){row=document.createElement('div');row.id='yleAviso';row.className='list-item';list.appendChild(row)}
+  row.innerHTML=`<div><strong>Exámenes médicos nuevos</strong><small>${pend.length} examen(es) de ${quienes.length} cliente(s).</small></div><button class="badge badge-red v6-dashboard-action" type="button">Ver</button>`;
+  row.querySelector('button').onclick=()=>window.yv74Expediente&&window.yv74Expediente(quienes[0]);
+}
 })();
 </script>
 </body></html>
